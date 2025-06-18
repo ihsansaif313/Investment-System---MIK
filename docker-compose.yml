@@ -1,0 +1,175 @@
+version: '3.8'
+
+services:
+  # MongoDB Database
+  mongodb:
+    image: mongo:7.0
+    container_name: investment_mongodb
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USERNAME:-admin}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:-password123}
+      MONGO_INITDB_DATABASE: ${MONGO_DATABASE:-investment_management}
+    ports:
+      - "${MONGO_PORT:-27017}:27017"
+    volumes:
+      - mongodb_data:/data/db
+      - mongodb_config:/data/configdb
+      - ./backend/scripts/mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
+    networks:
+      - investment_network
+    command: mongod --auth --bind_ip_all
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Redis Cache (optional)
+  redis:
+    image: redis:7.2-alpine
+    container_name: investment_redis
+    restart: unless-stopped
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - investment_network
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-redis123}
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Backend API
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: production
+    container_name: investment_backend
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      HOST: 0.0.0.0
+      
+      # Database
+      MONGODB_URI: mongodb://${MONGO_ROOT_USERNAME:-admin}:${MONGO_ROOT_PASSWORD:-password123}@mongodb:27017/${MONGO_DATABASE:-investment_management}?authSource=admin
+      
+      # Redis
+      REDIS_URL: redis://:${REDIS_PASSWORD:-redis123}@redis:6379
+      
+      # JWT Secrets
+      JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-key-change-in-production}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-your-super-secret-refresh-key-change-in-production}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-15m}
+      JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN:-7d}
+      
+      # Security
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:5174}
+      CORS_CREDENTIALS: ${CORS_CREDENTIALS:-true}
+      TRUST_PROXY: ${TRUST_PROXY:-1}
+      
+      # Rate Limiting
+      RATE_LIMIT_WINDOW: ${RATE_LIMIT_WINDOW:-15}
+      RATE_LIMIT_MAX: ${RATE_LIMIT_MAX:-100}
+      
+      # File Upload
+      MAX_FILE_SIZE: ${MAX_FILE_SIZE:-10485760}
+      
+      # Email (if using email service)
+      EMAIL_SERVICE: ${EMAIL_SERVICE:-}
+      EMAIL_USER: ${EMAIL_USER:-}
+      EMAIL_PASS: ${EMAIL_PASS:-}
+      
+      # Feature Flags
+      FEATURE_RATE_LIMITING: ${FEATURE_RATE_LIMITING:-true}
+      FEATURE_REAL_TIME_UPDATES: ${FEATURE_REAL_TIME_UPDATES:-true}
+      FEATURE_AUDIT_LOGGING: ${FEATURE_AUDIT_LOGGING:-true}
+      FEATURE_API_DOCS: ${FEATURE_API_DOCS:-true}
+      
+      # Logging
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      
+    ports:
+      - "${BACKEND_PORT:-3001}:3001"
+    volumes:
+      - backend_uploads:/app/uploads
+      - backend_logs:/app/logs
+    networks:
+      - investment_network
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Frontend (React)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: production
+    container_name: investment_frontend
+    restart: unless-stopped
+    environment:
+      VITE_API_URL: ${VITE_API_URL:-http://localhost:3001/api}
+      VITE_WS_URL: ${VITE_WS_URL:-ws://localhost:3001/ws}
+    ports:
+      - "${FRONTEND_PORT:-5174}:80"
+    networks:
+      - investment_network
+    depends_on:
+      backend:
+        condition: service_healthy
+
+  # Nginx Reverse Proxy (optional)
+  nginx:
+    image: nginx:alpine
+    container_name: investment_nginx
+    restart: unless-stopped
+    ports:
+      - "${NGINX_HTTP_PORT:-80}:80"
+      - "${NGINX_HTTPS_PORT:-443}:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - nginx_logs:/var/log/nginx
+    networks:
+      - investment_network
+    depends_on:
+      - backend
+      - frontend
+    profiles:
+      - nginx
+
+volumes:
+  mongodb_data:
+    driver: local
+  mongodb_config:
+    driver: local
+  redis_data:
+    driver: local
+  backend_uploads:
+    driver: local
+  backend_logs:
+    driver: local
+  nginx_logs:
+    driver: local
+
+networks:
+  investment_network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
