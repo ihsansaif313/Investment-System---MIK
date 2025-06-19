@@ -46,7 +46,7 @@ const Register: React.FC = () => {
     phone: '',
     dateOfBirth: '',
     address: '',
-    role: 'investor'
+    role: 'investor' // Default to investor, but user can change this
   });
   
   const [showPassword, setShowPassword] = useState(false);

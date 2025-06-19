@@ -9,6 +9,7 @@ import {
   SuperadminAnalytics,
   AdminAnalytics,
   InvestorAnalytics,
+  SalesmanAnalytics,
   ActivityLog,
   ProfitLoss,
   CreateSubCompanyForm,
@@ -22,6 +23,7 @@ import {
   RealTimeUpdate
 } from '../types/database';
 import { validateDataConsistency, synchronizeDataAcrossRoles, CrossPlatformData } from '../utils/dataConsistency';
+import { useRealTimeUpdates, AutoRefresh } from '../utils/realTimeUpdates';
 
 // State interface
 interface DataState {
@@ -55,6 +57,7 @@ interface DataState {
     superadmin: SuperadminAnalytics | null;
     admin: AdminAnalytics | null;
     investor: InvestorAnalytics | null;
+    salesman: SalesmanAnalytics | null;
   };
   activityLogs: ActivityLog[];
   profitLossRecords: ProfitLoss[];
@@ -82,6 +85,7 @@ type DataAction =
   | { type: 'SET_SUPERADMIN_ANALYTICS'; payload: SuperadminAnalytics }
   | { type: 'SET_ADMIN_ANALYTICS'; payload: AdminAnalytics }
   | { type: 'SET_INVESTOR_ANALYTICS'; payload: InvestorAnalytics }
+  | { type: 'SET_SALESMAN_ANALYTICS'; payload: SalesmanAnalytics }
   | { type: 'SET_ACTIVITY_LOGS'; payload: ActivityLog[] }
   | { type: 'SET_PROFIT_LOSS_RECORDS'; payload: ProfitLoss[] }
   | { type: 'SET_MARKET_DATA'; payload: any }
@@ -122,6 +126,7 @@ const initialState: DataState = {
     superadmin: null,
     admin: null,
     investor: null,
+    salesman: null,
   },
   activityLogs: [],
   profitLossRecords: [],
@@ -172,6 +177,11 @@ function dataReducer(state: DataState, action: DataAction): DataState {
       return {
         ...state,
         analytics: { ...state.analytics, investor: action.payload },
+      };
+    case 'SET_SALESMAN_ANALYTICS':
+      return {
+        ...state,
+        analytics: { ...state.analytics, salesman: action.payload },
       };
     case 'SET_ACTIVITY_LOGS':
       return { ...state, activityLogs: action.payload };
@@ -269,7 +279,8 @@ interface DataContextType {
   // Analytics
   fetchSuperadminAnalytics: (forceRefresh?: boolean) => Promise<void>;
   fetchAdminAnalytics: (subCompanyId?: string, forceRefresh?: boolean) => Promise<void>;
-  fetchInvestorAnalytics: (userId?: string, forceRefresh?: boolean) => Promise<void>;
+  fetchInvestorAnalytics: (userId?: string, forceRefresh?: boolean, subCompanyId?: string) => Promise<void>;
+  fetchSalesmanAnalytics: (forceRefresh?: boolean) => Promise<void>;
   
   // Activity logs
   fetchActivityLogs: (limit?: number) => Promise<void>;
@@ -561,11 +572,11 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
-  const fetchInvestorAnalytics = async (userId?: string, forceRefresh: boolean = false) => {
+  const fetchInvestorAnalytics = async (userId?: string, forceRefresh: boolean = false, subCompanyId?: string) => {
     if (!forceRefresh && !isDataStale('analytics')) return;
 
     const analytics = await handleApiCall(
-      () => apiService.getInvestorAnalytics(userId),
+      () => apiService.getInvestorAnalytics(userId, subCompanyId),
       'analytics',
       'analytics'
     );
@@ -576,10 +587,25 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
+  const fetchSalesmanAnalytics = async (forceRefresh: boolean = false) => {
+    if (!forceRefresh && !isDataStale('analytics')) return;
+
+    const analytics = await handleApiCall(
+      () => apiService.getSalesmanAnalytics(),
+      'analytics',
+      'analytics'
+    );
+
+    if (analytics) {
+      dispatch({ type: 'SET_SALESMAN_ANALYTICS', payload: analytics });
+      dispatch({ type: 'SET_LAST_FETCH', payload: { key: 'analytics', value: Date.now() } });
+    }
+  };
+
   // Activity logs
   const fetchActivityLogs = async (limit?: number) => {
     const logs = await handleApiCall(
-      () => apiService.getActivityLogs(limit),
+      () => apiService.getActivityLogs({ limit }),
       'general',
       'general'
     );
@@ -870,6 +896,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     fetchSuperadminAnalytics,
     fetchAdminAnalytics,
     fetchInvestorAnalytics,
+    fetchSalesmanAnalytics,
     fetchActivityLogs,
     fetchProfitLossRecords,
     fetchMarketData,

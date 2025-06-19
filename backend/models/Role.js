@@ -8,7 +8,7 @@ const roleSchema = new mongoose.Schema({
   },
   type: {
     type: String,
-    enum: ['superadmin', 'admin', 'investor'],
+    enum: ['superadmin', 'admin', 'investor', 'salesman'],
     required: true
   },
   permissions: [{
@@ -41,7 +41,7 @@ const roleSchema = new mongoose.Schema({
 roleSchema.index({ userId: 1 });
 roleSchema.index({ type: 1 });
 
-// Set default permissions based on role type
+// Set default permissions and status based on role type
 roleSchema.pre('save', function(next) {
   if (this.isNew) {
     switch (this.type) {
@@ -60,6 +60,7 @@ roleSchema.pre('save', function(next) {
           'generate_reports',
           'manage_assets'
         ];
+        this.status = 'active'; // Superadmins are automatically active
         break;
       case 'admin':
         this.permissions = [
@@ -70,12 +71,22 @@ roleSchema.pre('save', function(next) {
           'view_analytics',
           'generate_reports'
         ];
+        this.status = 'pending'; // Admins require approval
         break;
       case 'investor':
         this.permissions = [
           'view_analytics',
           'generate_reports'
         ];
+        this.status = 'active'; // Investors are automatically active
+        break;
+      case 'salesman':
+        this.permissions = [
+          'view_analytics',
+          'generate_reports',
+          'view_all_investments'
+        ];
+        this.status = 'active'; // Salesmen are automatically active
         break;
     }
   }

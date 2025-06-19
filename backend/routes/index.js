@@ -8,8 +8,11 @@ import authRoutes from './auth.js';
 import userRoutes from './users.js';
 import investmentRoutes from './investments.js';
 import companyRoutes from './companies.js';
+import companyAssignmentRoutes from './company-assignments.js';
+import adminManagementRoutes from './admin-management.js';
 import assetRoutes from './assets.js';
 import analyticsRoutes from './analytics.js';
+import activityLogsRoutes from './activity-logs.js';
 import { authenticate } from '../middleware/auth.js';
 import { requestLogger } from '../utils/logger.js';
 
@@ -56,8 +59,11 @@ router.use('/auth', authRoutes);
 router.use('/users', authenticate, userRoutes);
 router.use('/investments', authenticate, investmentRoutes);
 router.use('/companies', authenticate, companyRoutes);
+router.use('/company-assignments', authenticate, companyAssignmentRoutes);
+router.use('/admin-management', authenticate, adminManagementRoutes);
 router.use('/assets', authenticate, assetRoutes);
 router.use('/analytics', authenticate, analyticsRoutes);
+router.use('/activity-logs', authenticate, activityLogsRoutes);
 
 // API documentation endpoint
 router.get('/docs', (req, res) => {
@@ -99,6 +105,23 @@ router.get('/docs', (req, res) => {
         'GET /api/companies/:id': 'Get company by ID',
         'PUT /api/companies/:id': 'Update company',
         'DELETE /api/companies/:id': 'Delete company'
+      },
+      companyAssignments: {
+        'GET /api/company-assignments': 'Get all company assignments',
+        'POST /api/company-assignments': 'Create new assignment',
+        'PUT /api/company-assignments/:id': 'Update assignment',
+        'DELETE /api/company-assignments/:id': 'Remove assignment',
+        'GET /api/company-assignments/user/:userId': 'Get user assignments',
+        'GET /api/company-assignments/company/:companyId': 'Get company assignments',
+        'GET /api/company-assignments/available-admins': 'Get available admins',
+        'GET /api/company-assignments/all-admins': 'Get all admin users'
+      },
+      adminManagement: {
+        'GET /api/admin-management/pending': 'Get pending admin approvals',
+        'GET /api/admin-management/approved': 'Get approved admin users',
+        'POST /api/admin-management/approve/:userId': 'Approve admin user',
+        'POST /api/admin-management/reject/:userId': 'Reject admin user',
+        'GET /api/admin-management/status/:userId': 'Get admin approval status'
       },
       assets: {
         'GET /api/assets': 'Get all assets',

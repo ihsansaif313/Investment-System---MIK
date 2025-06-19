@@ -72,7 +72,7 @@ export const AuthProvider: React.FC<{
         loginResponse = await apiService.login(email, password);
       } catch (error: any) {
         // Show backend error message if available
-        const errorMessage = error.response?.data?.message || error.message || 'Login failed';
+        const errorMessage = error?.response?.data?.message || error?.message || 'Login failed';
         throw new Error(errorMessage);
       }
       if (!loginResponse) {
@@ -89,15 +89,21 @@ export const AuthProvider: React.FC<{
 
       // Redirect based on role and status
       const role = loginResponse.user.role.type;
-      const userStatus = loginResponse.user.role.type === 'investor' ?
-        loginResponse.user.subCompanyAdmin?.status : 'active';
+      const roleStatus = loginResponse.user.role.status;
 
       if (role === 'superadmin') {
         navigate('/superadmin/dashboard');
       } else if (role === 'admin') {
-        navigate('/admin/dashboard');
+        // Check if admin is pending approval
+        if (roleStatus === 'pending') {
+          // Admin will see pending approval screen handled by AdminDashboardLayout
+          navigate('/admin/dashboard');
+        } else {
+          navigate('/admin/dashboard');
+        }
       } else if (role === 'investor') {
-        if (userStatus === 'pending') {
+        const investorStatus = loginResponse.user.subCompanyAdmin?.status;
+        if (investorStatus === 'pending') {
           navigate('/investor/pending');
         } else {
           navigate('/investor/dashboard');
@@ -127,6 +133,11 @@ export const AuthProvider: React.FC<{
 
   const refreshAuthToken = async () => {
     try {
+      const storedRefreshToken = localStorage.getItem('refreshToken');
+      if (!storedRefreshToken) {
+        throw new Error('No refresh token available');
+      }
+
       const refreshResponse = await apiService.refreshToken();
 
       setUser(refreshResponse.user);
@@ -136,9 +147,11 @@ export const AuthProvider: React.FC<{
       localStorage.setItem('authToken', refreshResponse.token);
       localStorage.setItem('refreshToken', refreshResponse.refreshToken);
       localStorage.setItem('authUser', JSON.stringify(refreshResponse.user));
+
+      return refreshResponse;
     } catch (error) {
       console.error('Token refresh failed:', error);
-      logout();
+      // Don't automatically logout here, let the API interceptor handle it
       throw error;
     }
   };

@@ -9,6 +9,7 @@ import {
   SuperadminAnalytics,
   AdminAnalytics,
   InvestorAnalytics,
+  SalesmanAnalytics,
   ActivityLog,
   ProfitLoss,
   CreateSubCompanyForm,
@@ -579,6 +580,57 @@ export const mockApiService = {
   async getInvestorAnalytics(userId?: string): Promise<InvestorAnalytics> {
     await delay(800);
     return mockInvestorAnalytics;
+  },
+
+  async getSalesmanAnalytics(): Promise<SalesmanAnalytics> {
+    await delay(900);
+    return {
+      totalLeads: 85,
+      convertedLeads: 23,
+      conversionRate: 27.1,
+      totalSales: 650000,
+      totalCommission: 32500,
+      monthlyTarget: 750000,
+      targetProgress: 86.7,
+      monthlyGrowth: 15.2,
+      activePipeline: 42,
+      closedDeals: 23,
+      averageDealSize: 28260,
+      topPerformingInvestments: [
+        {
+          id: '1',
+          name: 'Tech Growth Fund',
+          salesCount: 8,
+          totalValue: 180000,
+          commission: 9000
+        },
+        {
+          id: '2',
+          name: 'Green Energy Portfolio',
+          salesCount: 6,
+          totalValue: 150000,
+          commission: 7500
+        }
+      ],
+      recentSales: [
+        {
+          id: '1',
+          clientName: 'Michael Brown',
+          investmentName: 'Tech Growth Fund',
+          amount: 35000,
+          commission: 1750,
+          date: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000)
+        },
+        {
+          id: '2',
+          clientName: 'Lisa Davis',
+          investmentName: 'Real Estate REIT',
+          amount: 22000,
+          commission: 1100,
+          date: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000)
+        }
+      ]
+    };
   },
 
   // Activity logs

@@ -128,5 +128,69 @@ subCompanySchema.virtual('totalValue').get(function() {
   return 0; // Placeholder
 });
 
+// Company Assignment Schema for multiple admin assignments
+const companyAssignmentSchema = new mongoose.Schema({
+  userId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
+  subCompanyId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'SubCompany',
+    required: true
+  },
+  assignedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
+  status: {
+    type: String,
+    enum: ['active', 'inactive', 'pending'],
+    default: 'active'
+  },
+  permissions: [{
+    type: String,
+    enum: [
+      'view_company_data',
+      'manage_investments',
+      'view_analytics',
+      'manage_users',
+      'generate_reports'
+    ]
+  }],
+  assignedDate: {
+    type: Date,
+    default: Date.now
+  },
+  notes: {
+    type: String,
+    trim: true
+  }
+}, {
+  timestamps: true
+});
+
+// Indexes for performance
+companyAssignmentSchema.index({ userId: 1, subCompanyId: 1 }, { unique: true });
+companyAssignmentSchema.index({ userId: 1 });
+companyAssignmentSchema.index({ subCompanyId: 1 });
+companyAssignmentSchema.index({ status: 1 });
+
+// Set default permissions for admin assignments
+companyAssignmentSchema.pre('save', function(next) {
+  if (this.isNew && this.permissions.length === 0) {
+    this.permissions = [
+      'view_company_data',
+      'manage_investments',
+      'view_analytics',
+      'generate_reports'
+    ];
+  }
+  next();
+});
+
 export const OwnerCompany = mongoose.model('OwnerCompany', ownerCompanySchema);
 export const SubCompany = mongoose.model('SubCompany', subCompanySchema);
+export const CompanyAssignment = mongoose.model('CompanyAssignment', companyAssignmentSchema);

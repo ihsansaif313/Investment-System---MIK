@@ -16,6 +16,7 @@ import {
   SuperadminAnalytics,
   AdminAnalytics,
   InvestorAnalytics,
+  SalesmanAnalytics,
   CreateSubCompanyForm,
   CreateInvestmentForm,
   InvestForm,
@@ -46,9 +47,32 @@ class ApiService {
     // Request interceptor to add auth token
     this.api.interceptors.request.use(
       (config) => {
-        const token = localStorage.getItem('authToken');
-        if (token) {
-          config.headers.Authorization = `Bearer ${token}`;
+        // List of endpoints that don't require authentication
+        const publicEndpoints = [
+          '/auth/login',
+          '/auth/register',
+          '/auth/verify-email',
+          '/auth/forgot-password',
+          '/auth/reset-password',
+          '/auth/resend-verification'
+        ];
+
+        const isPublicEndpoint = publicEndpoints.some(endpoint =>
+          config.url?.includes(endpoint)
+        );
+
+        if (!isPublicEndpoint) {
+          const token = localStorage.getItem('authToken');
+          if (token) {
+            config.headers.Authorization = `Bearer ${token}`;
+          } else {
+            // Clear user data if no token found for protected endpoints
+            localStorage.removeItem('authToken');
+            localStorage.removeItem('refreshToken');
+            localStorage.removeItem('authUser');
+            window.location.href = '/login';
+            return Promise.reject(new Error('No authentication token found'));
+          }
         }
         return config;
       },
@@ -58,13 +82,47 @@ class ApiService {
     // Response interceptor for error handling
     this.api.interceptors.response.use(
       (response) => response,
-      (error) => {
+      async (error) => {
+        const originalRequest = error.config;
+
+        if (error.response?.status === 401 && !originalRequest._retry) {
+          originalRequest._retry = true;
+
+          try {
+            // Try to refresh the token
+            const refreshToken = localStorage.getItem('refreshToken');
+            if (refreshToken) {
+              const response = await this.api.post('/auth/refresh', { refreshToken });
+              const newToken = response.data.data.token;
+              const newRefreshToken = response.data.data.refreshToken;
+
+              // Update stored tokens
+              localStorage.setItem('authToken', newToken);
+              localStorage.setItem('refreshToken', newRefreshToken);
+              localStorage.setItem('authUser', JSON.stringify(response.data.data.user));
+
+              // Update the authorization header and retry the original request
+              originalRequest.headers.Authorization = `Bearer ${newToken}`;
+              return this.api(originalRequest);
+            }
+          } catch (refreshError) {
+            // Refresh failed, clear tokens and redirect to login
+            localStorage.removeItem('authToken');
+            localStorage.removeItem('refreshToken');
+            localStorage.removeItem('authUser');
+            window.location.href = '/login';
+            return Promise.reject(refreshError);
+          }
+        }
+
+        // If it's a 401 and we already tried to refresh, or no refresh token available
         if (error.response?.status === 401) {
-          // Token expired or invalid
           localStorage.removeItem('authToken');
+          localStorage.removeItem('refreshToken');
           localStorage.removeItem('authUser');
           window.location.href = '/login';
         }
+
         return Promise.reject(error);
       }
     );
@@ -117,7 +175,7 @@ class ApiService {
       return mockApiService.verifyEmail(token);
     }
 
-    await this.api.get(`/api/auth/verify-email?token=${encodeURIComponent(token)}`);
+    await this.api.get(`/auth/verify-email?token=${encodeURIComponent(token)}`);
   }
 
   async resendVerification(email: string): Promise<void> {
@@ -125,7 +183,7 @@ class ApiService {
       return mockApiService.resendVerification(email);
     }
 
-    await this.api.post('/api/auth/resend-verification', { email });
+    await this.api.post('/auth/resend-verification', { email });
   }
 
   async forgotPassword(email: string): Promise<void> {
@@ -133,7 +191,7 @@ class ApiService {
       return mockApiService.forgotPassword(email);
     }
 
-    await this.api.post('/api/auth/forgot-password', { email });
+    await this.api.post('/auth/forgot-password', { email });
   }
 
   async resetPassword(token: string, password: string): Promise<void> {
@@ -141,7 +199,7 @@ class ApiService {
       return mockApiService.resetPassword(token, password);
     }
 
-    await this.api.post('/api/auth/reset-password', { token, password });
+    await this.api.post('/auth/reset-password', { token, password });
   }
 
   // User management endpoints
@@ -150,7 +208,7 @@ class ApiService {
       return mockApiService.getUsers(filters);
     }
 
-    const response: AxiosResponse<ApiResponse<UserWithRole[]>> = await this.api.get('/api/users', {
+    const response: AxiosResponse<ApiResponse<UserWithRole[]>> = await this.api.get('/users', {
       params: filters,
     });
     return response.data.data!;
@@ -181,35 +239,35 @@ class ApiService {
       return mockApiService.getSubCompanies();
     }
 
-    const response: AxiosResponse<ApiResponse<SubCompanyWithDetails[]>> = await this.api.get('/api/companies/sub');
+    const response: AxiosResponse<ApiResponse<SubCompanyWithDetails[]>> = await this.api.get('/companies');
     return response.data.data!;
   }
-
+  
   async getSubCompanyById(id: string): Promise<SubCompanyWithDetails> {
     const response: AxiosResponse<ApiResponse<SubCompanyWithDetails>> = await this.api.get(`/companies/sub/${id}`);
     return response.data.data!;
   }
-
+  
   async createSubCompany(companyData: CreateSubCompanyForm): Promise<SubCompanyWithDetails> {
     const response: AxiosResponse<ApiResponse<SubCompanyWithDetails>> = await this.api.post('/companies/sub', companyData);
     return response.data.data!;
   }
-
+  
   async updateSubCompany(id: string, companyData: Partial<SubCompany>): Promise<SubCompanyWithDetails> {
     const response: AxiosResponse<ApiResponse<SubCompanyWithDetails>> = await this.api.put(`/companies/sub/${id}`, companyData);
     return response.data.data!;
   }
-
+  
   async deleteSubCompany(id: string): Promise<void> {
     await this.api.delete(`/companies/sub/${id}`);
   }
-
+  
   // Investment management endpoints
   async getInvestments(filters?: InvestmentFilters): Promise<InvestmentWithDetails[]> {
     if (USE_MOCK_API) {
       return mockApiService.getInvestments(filters);
     }
-
+  
     const response: AxiosResponse<ApiResponse<InvestmentWithDetails[]>> = await this.api.get('/investments', {
       params: filters,
     });
@@ -274,7 +332,7 @@ class ApiService {
       return mockApiService.getSuperadminAnalytics();
     }
 
-    const response: AxiosResponse<ApiResponse<SuperadminAnalytics>> = await this.api.get('/api/analytics/superadmin');
+    const response: AxiosResponse<ApiResponse<SuperadminAnalytics>> = await this.api.get('/analytics/superadmin');
     return response.data.data!;
   }
 
@@ -289,13 +347,57 @@ class ApiService {
     return response.data.data!;
   }
 
-  async getInvestorAnalytics(userId?: string): Promise<InvestorAnalytics> {
+  async getSalesmanAnalytics(): Promise<SalesmanAnalytics> {
+    if (USE_MOCK_API) {
+      return mockApiService.getSalesmanAnalytics();
+    }
+
+    const response: AxiosResponse<ApiResponse<SalesmanAnalytics>> = await this.api.get('/analytics/salesman');
+    return response.data.data!;
+  }
+
+  async getInvestorAnalytics(userId?: string, subCompanyId?: string): Promise<InvestorAnalytics> {
     if (USE_MOCK_API) {
       return mockApiService.getInvestorAnalytics(userId);
     }
 
     const response: AxiosResponse<ApiResponse<InvestorAnalytics>> = await this.api.get('/analytics/investor', {
-      params: { userId },
+      params: { userId, subCompanyId },
+    });
+    return response.data.data!;
+  }
+
+  async getInvestorPerformanceHistory(userId?: string, subCompanyId?: string, months: number = 12): Promise<any[]> {
+    const response: AxiosResponse<ApiResponse<any[]>> = await this.api.get('/analytics/investor/performance-history', {
+      params: { userId, subCompanyId, months },
+    });
+    return response.data.data!;
+  }
+
+  async getInvestorPortfolioSummary(userId?: string, subCompanyId?: string): Promise<any> {
+    const response: AxiosResponse<ApiResponse<any>> = await this.api.get('/analytics/investor/portfolio-summary', {
+      params: { userId, subCompanyId },
+    });
+    return response.data.data!;
+  }
+
+  async getInvestorInvestmentComparison(userId?: string, subCompanyId?: string): Promise<any[]> {
+    const response: AxiosResponse<ApiResponse<any[]>> = await this.api.get('/analytics/investor/investment-comparison', {
+      params: { userId, subCompanyId },
+    });
+    return response.data.data!;
+  }
+
+  async getInvestorRiskAnalysis(userId?: string, subCompanyId?: string): Promise<any> {
+    const response: AxiosResponse<ApiResponse<any>> = await this.api.get('/analytics/investor/risk-analysis', {
+      params: { userId, subCompanyId },
+    });
+    return response.data.data!;
+  }
+
+  async getInvestorBenchmarkComparison(userId?: string, subCompanyId?: string): Promise<any> {
+    const response: AxiosResponse<ApiResponse<any>> = await this.api.get('/analytics/investor/benchmark-comparison', {
+      params: { userId, subCompanyId },
     });
     return response.data.data!;
   }
@@ -313,17 +415,7 @@ class ApiService {
     return response.data.data!;
   }
 
-  // Activity logs
-  async getActivityLogs(limit?: number): Promise<ActivityLog[]> {
-    if (USE_MOCK_API) {
-      return mockApiService.getActivityLogs(limit);
-    }
 
-    const response: AxiosResponse<ApiResponse<ActivityLog[]>> = await this.api.get('/activity-logs', {
-      params: { limit },
-    });
-    return response.data.data!;
-  }
 
   // Market data endpoints
   async getMarketData(): Promise<any> {
@@ -332,6 +424,89 @@ class ApiService {
     }
 
     const response: AxiosResponse<ApiResponse<any>> = await this.api.get('/market-data');
+    return response.data.data!;
+  }
+
+  // Admin management endpoints
+  async getPendingAdmins(): Promise<UserWithRole[]> {
+    const response: AxiosResponse<ApiResponse<UserWithRole[]>> = await this.api.get('/admin-management/pending');
+    return response.data.data!;
+  }
+
+  async getApprovedAdmins(): Promise<UserWithRole[]> {
+    const response: AxiosResponse<ApiResponse<UserWithRole[]>> = await this.api.get('/admin-management/approved');
+    return response.data.data!;
+  }
+
+  async approveAdmin(userId: string): Promise<void> {
+    await this.api.post(`/admin-management/approve/${userId}`);
+  }
+
+  async rejectAdmin(userId: string, reason?: string): Promise<void> {
+    await this.api.post(`/admin-management/reject/${userId}`, { reason });
+  }
+
+  async getAdminStatus(userId: string): Promise<{ status: string; notes?: string }> {
+    const response: AxiosResponse<ApiResponse<{ status: string; notes?: string }>> = await this.api.get(`/admin-management/status/${userId}`);
+    return response.data.data!;
+  }
+
+  // Company assignment endpoints
+  async getCompanyAssignments(): Promise<any[]> {
+    const response: AxiosResponse<ApiResponse<any[]>> = await this.api.get('/company-assignments');
+    return response.data.data!;
+  }
+
+  async createCompanyAssignment(data: { userId: string; subCompanyId: string }): Promise<any> {
+    const response: AxiosResponse<ApiResponse<any>> = await this.api.post('/company-assignments', data);
+    return response.data.data!;
+  }
+
+  async removeCompanyAssignment(assignmentId: string): Promise<void> {
+    await this.api.delete(`/company-assignments/${assignmentId}`);
+  }
+
+  // Activity log endpoints
+  async getActivityLogs(options: {
+    limit?: number;
+    userId?: string;
+    entityType?: string;
+    entityId?: string;
+    actions?: string[];
+    startDate?: string;
+    endDate?: string;
+  } = {}): Promise<ActivityLog[]> {
+    const params = new URLSearchParams();
+    if (options.limit) params.append('limit', options.limit.toString());
+    if (options.userId) params.append('userId', options.userId);
+    if (options.entityType) params.append('entityType', options.entityType);
+    if (options.entityId) params.append('entityId', options.entityId);
+    if (options.actions) params.append('actions', options.actions.join(','));
+    if (options.startDate) params.append('startDate', options.startDate);
+    if (options.endDate) params.append('endDate', options.endDate);
+
+    const response: AxiosResponse<ApiResponse<ActivityLog[]>> = await this.api.get(`/activity-logs?${params}`);
+    return response.data.data!;
+  }
+
+  async getEntityActivityLogs(entityType: string, entityId: string, limit: number = 10): Promise<ActivityLog[]> {
+    const response: AxiosResponse<ApiResponse<ActivityLog[]>> = await this.api.get(`/activity-logs/entity/${entityType}/${entityId}?limit=${limit}`);
+    return response.data.data!;
+  }
+
+  async getUserActivityLogs(userId: string, limit: number = 10): Promise<ActivityLog[]> {
+    const response: AxiosResponse<ApiResponse<ActivityLog[]>> = await this.api.get(`/activity-logs/user/${userId}?limit=${limit}`);
+    return response.data.data!;
+  }
+
+  async createActivityLog(data: {
+    action: string;
+    entityType: string;
+    entityId?: string;
+    description: string;
+    metadata?: any;
+  }): Promise<ActivityLog> {
+    const response: AxiosResponse<ApiResponse<ActivityLog>> = await this.api.post('/activity-logs', data);
     return response.data.data!;
   }
 

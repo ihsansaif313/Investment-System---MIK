@@ -121,7 +121,7 @@ const roleSchema = new mongoose.Schema({
   type: {
     type: String,
     required: true,
-    enum: ['superadmin', 'admin', 'investor'],
+    enum: ['superadmin', 'admin', 'investor', 'salesman'],
     index: true
   },
   permissions: [{
@@ -293,6 +293,60 @@ subCompanySchema.index({ adminUserId: 1 });
 subCompanySchema.index({ registrationNumber: 1 });
 subCompanySchema.index({ taxId: 1 });
 subCompanySchema.index({ isActive: 1 });
+
+// ============================================================================
+// COMPANY ASSIGNMENT SCHEMA (for multiple admin assignments)
+// ============================================================================
+const companyAssignmentSchema = new mongoose.Schema({
+  userId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
+  subCompanyId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'SubCompany',
+    required: true
+  },
+  assignedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
+  status: {
+    type: String,
+    enum: ['active', 'inactive', 'pending'],
+    default: 'active'
+  },
+  permissions: [{
+    type: String,
+    enum: [
+      'view_company_data',
+      'manage_investments',
+      'view_analytics',
+      'manage_users',
+      'generate_reports'
+    ]
+  }],
+  assignedDate: {
+    type: Date,
+    default: Date.now
+  },
+  notes: {
+    type: String,
+    trim: true,
+    maxlength: 500
+  }
+}, {
+  timestamps: true
+});
+
+// Indexes for performance
+companyAssignmentSchema.index({ userId: 1, subCompanyId: 1 }, { unique: true });
+companyAssignmentSchema.index({ userId: 1 });
+companyAssignmentSchema.index({ subCompanyId: 1 });
+companyAssignmentSchema.index({ status: 1 });
+companyAssignmentSchema.index({ assignedBy: 1 });
 
 // ============================================================================
 // ASSET SCHEMA
@@ -794,6 +848,7 @@ export {
   roleSchema,
   ownerCompanySchema,
   subCompanySchema,
+  companyAssignmentSchema,
   assetSchema,
   investmentSchema,
   investorInvestmentSchema,

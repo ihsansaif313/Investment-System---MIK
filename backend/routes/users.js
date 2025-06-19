@@ -1,11 +1,11 @@
 import express from 'express';
 import User from '../models/User.js';
-import { authorize } from '../middleware/auth.js';
+import { authenticate, authorize } from '../middleware/auth.js';
 
 const router = express.Router();
 
 // Get all users (admin/superadmin only)
-router.get('/', authorize('superadmin', 'admin'), async (req, res) => {
+router.get('/', authenticate, authorize('superadmin', 'admin'), async (req, res) => {
   try {
     const users = await User.find({ isActive: true })
       .select('-password -emailVerificationToken -passwordResetToken')

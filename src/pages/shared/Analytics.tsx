@@ -38,11 +38,12 @@ interface AnalyticsProps {
 const Analytics: React.FC<AnalyticsProps> = ({ userRole }) => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { 
-    state, 
+  const {
+    state,
     fetchSuperadminAnalytics,
     fetchAdminAnalytics,
     fetchInvestorAnalytics,
+    fetchSalesmanAnalytics,
     fetchInvestments,
     fetchSubCompanies,
     fetchUsers
@@ -89,6 +90,16 @@ const Analytics: React.FC<AnalyticsProps> = ({ userRole }) => {
               ]);
             }
             break;
+          case 'salesman':
+            await Promise.all([
+              fetchSalesmanAnalytics(),
+              fetchInvestments(),
+              fetchUsers()
+            ]);
+            break;
+          default:
+            console.warn(`Unknown user role: ${currentRole}`);
+            break;
         }
       } catch (error) {
         errorToast('Failed to load analytics data', 'Please try refreshing the page');
@@ -119,6 +130,8 @@ const Analytics: React.FC<AnalyticsProps> = ({ userRole }) => {
         return analytics.admin;
       case 'investor':
         return analytics.investor;
+      case 'salesman':
+        return analytics.salesman;
       default:
         return null;
     }
@@ -197,6 +210,12 @@ const Analytics: React.FC<AnalyticsProps> = ({ userRole }) => {
         case 'investor':
           if (user?.id) await fetchInvestorAnalytics(user.id, true);
           break;
+        case 'salesman':
+          await fetchSalesmanAnalytics(true);
+          break;
+        default:
+          console.warn(`Cannot refresh analytics for unknown role: ${currentRole}`);
+          break;
       }
       successToast('Analytics refreshed successfully');
     } catch (error) {
@@ -230,6 +249,8 @@ const Analytics: React.FC<AnalyticsProps> = ({ userRole }) => {
         return 'Company Analytics';
       case 'investor':
         return 'Portfolio Analytics';
+      case 'salesman':
+        return 'Sales Analytics';
       default:
         return 'Analytics';
     }
@@ -293,21 +314,28 @@ const Analytics: React.FC<AnalyticsProps> = ({ userRole }) => {
       {/* Key Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <MetricCard
-          title={currentRole === 'superadmin' ? 'Total Companies' : currentRole === 'admin' ? 'Total Investments' : 'Portfolio Value'}
-          value={currentRole === 'superadmin' ? analyticsData?.totalSubCompanies || 0 : 
+          title={currentRole === 'superadmin' ? 'Total Companies' :
+                 currentRole === 'admin' ? 'Total Investments' :
+                 currentRole === 'salesman' ? 'Total Leads' :
+                 'Portfolio Value'}
+          value={currentRole === 'superadmin' ? analyticsData?.totalSubCompanies || 0 :
                  currentRole === 'admin' ? analyticsData?.totalInvestments || 0 :
+                 currentRole === 'salesman' ? analyticsData?.totalLeads || 0 :
                  `$${(analyticsData?.totalValue || 0).toLocaleString()}`}
-          change={{ value: 12.5, type: 'increase' }}
+          change={{ value: currentRole === 'salesman' ? analyticsData?.monthlyGrowth || 0 : 12.5, type: 'increase' }}
           icon={currentRole === 'superadmin' ? <Building2 className="w-6 h-6 text-blue-500" /> :
                 currentRole === 'admin' ? <BarChart3 className="w-6 h-6 text-green-500" /> :
+                currentRole === 'salesman' ? <Users className="w-6 h-6 text-purple-500" /> :
                 <DollarSign className="w-6 h-6 text-yellow-500" />}
           chartData={performanceData.slice(-7).map(d => ({ value: d.totalInvestment }))}
           chartType="bar"
         />
         
         <MetricCard
-          title="Total Value"
-          value={`$${(analyticsData?.totalValue || 0).toLocaleString()}`}
+          title={currentRole === 'salesman' ? 'Total Sales' : 'Total Value'}
+          value={currentRole === 'salesman' ?
+                 `$${(analyticsData?.totalSales || 0).toLocaleString()}` :
+                 `$${(analyticsData?.totalValue || 0).toLocaleString()}`}
           change={{ value: 8.3, type: 'increase' }}
           icon={<DollarSign className="w-6 h-6 text-green-500" />}
           chartData={performanceData.slice(-7).map(d => ({ value: d.totalReturn }))}
@@ -315,8 +343,10 @@ const Analytics: React.FC<AnalyticsProps> = ({ userRole }) => {
         />
         
         <MetricCard
-          title="ROI"
-          value={`${(analyticsData?.roi || 0).toFixed(2)}%`}
+          title={currentRole === 'salesman' ? 'Conversion Rate' : 'ROI'}
+          value={currentRole === 'salesman' ?
+                 `${(analyticsData?.conversionRate || 0).toFixed(1)}%` :
+                 `${(analyticsData?.roi || 0).toFixed(2)}%`}
           change={{ value: analyticsData?.monthlyGrowth || 0, type: analyticsData?.monthlyGrowth && analyticsData.monthlyGrowth > 0 ? 'increase' : 'decrease' }}
           icon={<Target className="w-6 h-6 text-purple-500" />}
           chartData={performanceData.slice(-7).map(d => ({ value: d.roi }))}
@@ -324,10 +354,16 @@ const Analytics: React.FC<AnalyticsProps> = ({ userRole }) => {
         />
         
         <MetricCard
-          title={currentRole === 'superadmin' ? 'Total Users' : 'Active Investments'}
-          value={currentRole === 'superadmin' ? users.length : analyticsData?.activeInvestments || 0}
+          title={currentRole === 'superadmin' ? 'Total Users' :
+                 currentRole === 'salesman' ? 'Commission Earned' :
+                 'Active Investments'}
+          value={currentRole === 'superadmin' ? users.length :
+                 currentRole === 'salesman' ? `$${(analyticsData?.totalCommission || 0).toLocaleString()}` :
+                 analyticsData?.activeInvestments || 0}
           change={{ value: 15.2, type: 'increase' }}
-          icon={currentRole === 'superadmin' ? <Users className="w-6 h-6 text-teal-500" /> : <Activity className="w-6 h-6 text-orange-500" />}
+          icon={currentRole === 'superadmin' ? <Users className="w-6 h-6 text-teal-500" /> :
+                currentRole === 'salesman' ? <DollarSign className="w-6 h-6 text-emerald-500" /> :
+                <Activity className="w-6 h-6 text-orange-500" />}
           chartData={performanceData.slice(-7).map(d => ({ value: d.profit - d.loss }))}
           chartType="line"
         />

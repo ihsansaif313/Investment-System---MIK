@@ -22,6 +22,7 @@ import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import ErrorState from '../../components/ui/ErrorState';
 import DataTable, { Column } from '../../components/ui/DataTable';
 import { MetricCard, CustomLineChart, CustomBarChart, CustomPieChart, CustomDonutChart } from '../../components/ui/Charts';
+import SystemStatus from '../../components/system/SystemStatus';
 import { useData } from '../../contexts/DataContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSuccessToast, useErrorToast } from '../../components/ui/Toast';
@@ -460,6 +461,11 @@ const SuperadminDashboard: React.FC = () => {
             </div>
           )}
         </Card>
+      </div>
+
+      {/* System Status */}
+      <div className="mt-8">
+        <SystemStatus />
       </div>
     </DashboardLayout>
   );

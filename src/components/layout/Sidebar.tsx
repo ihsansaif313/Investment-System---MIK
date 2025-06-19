@@ -31,8 +31,13 @@ const Sidebar: React.FC = () => {
     roles: ['superadmin', 'admin', 'investor']
   }, {
     icon: <BuildingIcon size={20} />,
-    label: 'Sub-Companies',
-    path: '/superadmin/companies',
+    label: 'Companies',
+    path: '/superadmin/company-management',
+    roles: ['superadmin']
+  }, {
+    icon: <UsersIcon size={20} />,
+    label: 'Admin Assignments',
+    path: '/superadmin/admin-assignments',
     roles: ['superadmin']
   }, {
     icon: <PieChartIcon size={20} />,

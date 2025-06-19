@@ -14,7 +14,7 @@ import {
   Filter,
   Download
 } from 'lucide-react';
-import DashboardLayout from '../../layouts/DashboardLayout';
+import AdminDashboardLayout from '../../layouts/AdminDashboardLayout';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
@@ -23,18 +23,21 @@ import { ConfirmModal } from '../../components/ui/Modal';
 import { MetricCard, CustomBarChart, CustomPieChart, CustomAreaChart } from '../../components/ui/Charts';
 import { useData } from '../../contexts/DataContext';
 import { useAuth } from '../../contexts/AuthContext';
+import { useCompanySelection } from '../../contexts/CompanySelectionContext';
 import { useSuccessToast, useErrorToast } from '../../components/ui/Toast';
 import { InvestmentWithDetails } from '../../types/database';
 import { useRealTimeUpdates } from '../../hooks/useRealTimeUpdates';
 const AdminDashboard: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { selectedCompany, hasCompanyAccess } = useCompanySelection();
   const {
     state,
     fetchAdminAnalytics,
     fetchInvestments,
     fetchUsers,
     fetchInvestorInvestments,
+    fetchActivityLogs,
     deleteInvestment,
     calculateMetrics,
     calculatePerformanceTrend,
@@ -68,7 +71,8 @@ const AdminDashboard: React.FC = () => {
           fetchAdminAnalytics(subCompanyId),
           fetchInvestments({ subCompanyId }),
           fetchUsers({ subCompanyId }),
-          fetchInvestorInvestments()
+          fetchInvestorInvestments(),
+          fetchActivityLogs(10)
         ]);
       } catch (error) {
         errorToast('Failed to load dashboard data', 'Please try refreshing the page');
@@ -80,6 +84,7 @@ const AdminDashboard: React.FC = () => {
   const {
     investments,
     analytics,
+    activityLogs,
     loading
   } = state;
 
@@ -209,16 +214,22 @@ const AdminDashboard: React.FC = () => {
   ];
   if (isLoading) {
     return (
-      <DashboardLayout title="Admin Dashboard" subtitle="Manage your company's investments and investors">
+      <AdminDashboardLayout
+        title={selectedCompany ? `${selectedCompany.name} Dashboard` : "Admin Dashboard"}
+        subtitle={selectedCompany ? `Manage ${selectedCompany.name}'s investments and investors` : "Manage your company's investments and investors"}
+      >
         <div className="flex items-center justify-center h-64">
           <LoadingSpinner size="xl" />
         </div>
-      </DashboardLayout>
+      </AdminDashboardLayout>
     );
   }
 
   return (
-    <DashboardLayout title="Admin Dashboard" subtitle="Manage your company's investments and investors">
+    <AdminDashboardLayout
+      title={selectedCompany ? `${selectedCompany.name} Dashboard` : "Admin Dashboard"}
+      subtitle={selectedCompany ? `Manage ${selectedCompany.name}'s investments and investors` : "Manage your company's investments and investors"}
+    >
       {/* Header Actions */}
       <div className="flex justify-between items-center mb-6">
         <div className="flex items-center gap-4">
@@ -510,21 +521,23 @@ const AdminDashboard: React.FC = () => {
         <Card className="p-6">
           <h3 className="text-lg font-semibold text-white mb-4">Recent Activity</h3>
           <div className="space-y-3">
-            {investments.slice(0, 5).map((investment) => (
-              <div key={investment.id} className="flex items-start gap-3">
-                <div className="w-8 h-8 bg-yellow-500/20 rounded-full flex items-center justify-center flex-shrink-0">
-                  <Activity className="w-4 h-4 text-yellow-500" />
+            {activityLogs.length > 0 ? (
+              activityLogs.slice(0, 5).map((activity) => (
+                <div key={activity.id} className="flex items-start gap-3">
+                  <div className="w-8 h-8 bg-yellow-500/20 rounded-full flex items-center justify-center flex-shrink-0">
+                    <Activity className="w-4 h-4 text-yellow-500" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-white">{activity.description}</p>
+                    <p className="text-xs text-slate-400 mt-1">
+                      {new Date(activity.timestamp).toLocaleString()}
+                    </p>
+                  </div>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm text-white">
-                    Investment "{investment.name}" updated
-                  </p>
-                  <p className="text-xs text-slate-400 mt-1">
-                    {new Date(investment.updated_at).toLocaleDateString()}
-                  </p>
-                </div>
-              </div>
-            ))}
+              ))
+            ) : (
+              <p className="text-slate-400 text-sm">No recent activity</p>
+            )}
           </div>
         </Card>
       </div>
@@ -539,7 +552,7 @@ const AdminDashboard: React.FC = () => {
         confirmText="Delete"
         variant="danger"
       />
-    </DashboardLayout>
+    </AdminDashboardLayout>
   );
 };
 export default AdminDashboard;

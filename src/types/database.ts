@@ -23,6 +23,8 @@ export interface Role {
   id: string;
   user_id: string;
   type: UserRole;
+  status: 'active' | 'pending' | 'inactive';
+  permissions?: string[];
   created_at: Date;
 }
 
@@ -64,6 +66,19 @@ export interface SubCompanyAdmin {
   status: 'active' | 'inactive';
   permissions?: string[];
   created_at: Date;
+}
+
+export interface CompanyAssignment {
+  id: string;
+  userId: string;
+  subCompanyId: string;
+  assignedBy: string;
+  status: 'active' | 'inactive' | 'pending';
+  permissions: string[];
+  assignedDate: Date;
+  notes?: string;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface Asset {
@@ -224,6 +239,35 @@ export interface InvestorAnalytics extends DashboardAnalytics {
   portfolioDistribution: PortfolioDistribution[];
 }
 
+export interface SalesmanAnalytics {
+  totalLeads: number;
+  convertedLeads: number;
+  conversionRate: number;
+  totalSales: number;
+  totalCommission: number;
+  monthlyTarget: number;
+  targetProgress: number;
+  monthlyGrowth: number;
+  activePipeline: number;
+  closedDeals: number;
+  averageDealSize: number;
+  topPerformingInvestments: {
+    id: string;
+    name: string;
+    salesCount: number;
+    totalValue: number;
+    commission: number;
+  }[];
+  recentSales: {
+    id: string;
+    clientName: string;
+    investmentName: string;
+    amount: number;
+    commission: number;
+    date: Date;
+  }[];
+}
+
 export interface MonthlyPerformance {
   month: string;
   year: number;
@@ -244,11 +288,22 @@ export interface PortfolioDistribution {
 export interface ActivityLog {
   id: string;
   user_id: string;
+  userName: string;
+  userEmail: string;
   action: string;
   entity_type: string;
-  entity_id: string;
+  entity_id?: string;
   description: string;
-  metadata?: Record<string, any>;
+  metadata?: {
+    ip?: string;
+    userAgent?: string;
+    companyId?: string;
+    investmentId?: string;
+    amount?: number;
+    previousValue?: any;
+    newValue?: any;
+    additionalInfo?: any;
+  };
   timestamp: Date;
 }
 

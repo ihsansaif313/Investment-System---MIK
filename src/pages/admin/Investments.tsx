@@ -14,7 +14,7 @@ import {
   DollarSign,
   Users
 } from 'lucide-react';
-import DashboardLayout from '../../layouts/DashboardLayout';
+import AdminDashboardLayout from '../../layouts/AdminDashboardLayout';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import DataTable, { Column } from '../../components/ui/DataTable';
@@ -212,7 +212,7 @@ const Investments: React.FC = () => {
     }
   ];
   return (
-    <DashboardLayout title="Investments" subtitle="Manage your company's investment portfolio">
+    <AdminDashboardLayout title="Investments" subtitle="Manage your company's investment portfolio">
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <MetricCard
@@ -406,7 +406,7 @@ const Investments: React.FC = () => {
           </div>
         </div>
       </Modal>
-    </DashboardLayout>
+    </AdminDashboardLayout>
   );
 };
 export default Investments;

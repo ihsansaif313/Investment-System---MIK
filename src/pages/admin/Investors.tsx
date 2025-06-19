@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { PlusIcon, SearchIcon, FilterIcon, UsersIcon, UserPlusIcon, MailIcon, PhoneIcon, CheckCircleIcon, XCircleIcon, EyeIcon } from 'lucide-react';
-import DashboardLayout from '../../layouts/DashboardLayout';
+import AdminDashboardLayout from '../../layouts/AdminDashboardLayout';
 import Button from '../../components/ui/Button';
 import { useAuth } from '../../contexts/AuthContext';
 import { useData } from '../../contexts/DataContext';
@@ -135,7 +135,7 @@ const Investors: React.FC = () => {
   const handleCloseModal = () => {
     setSelectedInvestor(null);
   };
-  return <DashboardLayout title="Investors" subtitle={`Manage investors for your company`}>
+  return <AdminDashboardLayout title="Investors" subtitle={`Manage investors for your company`}>
       <div className="mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div className="flex items-center gap-4">
           <div className="relative">
@@ -376,6 +376,6 @@ const Investors: React.FC = () => {
       </div>
       {/* Investor Detail Modal */}
       {selectedInvestor && <InvestorDetailModal investor={selectedInvestor} onClose={handleCloseModal} onApprove={handleApproveInvestor} onReject={handleRejectInvestor} isProcessing={processingId === selectedInvestor.id} />}
-    </DashboardLayout>;
+    </AdminDashboardLayout>;
 };
 export default Investors;

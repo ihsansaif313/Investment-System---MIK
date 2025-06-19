@@ -7,13 +7,8 @@ import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
 import mongoose from 'mongoose';
 
-// Import routes
-import authRoutes from './routes/auth.js';
-import userRoutes from './routes/users.js';
-import companyRoutes from './routes/companies.js';
-import investmentRoutes from './routes/investments.js';
-import analyticsRoutes from './routes/analytics.js';
-import assetRoutes from './routes/assets.js';
+// Import centralized routes
+import apiRoutes from './routes/index.js';
 import { logStartup, safeConsole } from './utils/console.js';
 
 // Load environment variables
@@ -25,23 +20,13 @@ const PORT = process.env.PORT || 3001;
 // Security middleware
 app.use(helmet());
 
-// Rate limiting
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
-  message: 'Too many requests from this IP, please try again later.'
-});
-app.use('/api/', limiter);
-
-import { URL } from 'url';
-
+// CORS configuration
 const allowedOrigins = [
   process.env.CORS_ORIGIN || 'http://localhost:5173',
   'http://localhost:5173',
   'http://localhost:5174'
 ];
 
-// CORS configuration
 app.use(cors({
   origin: function(origin, callback) {
     safeConsole.debug('CORS origin:', origin);
@@ -66,9 +51,18 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
+// Rate limiting
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // limit each IP to 100 requests per windowMs
+  message: 'Too many requests from this IP, please try again later.'
+});
+app.use('/api/', limiter);
+
 // Body parsing middleware
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
 
 // MongoDB connection
 const connectDB = async () => {
@@ -79,36 +73,40 @@ const connectDB = async () => {
 
     safeConsole.info('✅ MongoDB connected successfully');
     safeConsole.info(`📊 Database: ${mongoose.connection.name}`);
+    return true;
   } catch (error) {
     safeConsole.error('❌ MongoDB connection error:', error.message);
-
-    // Do not fallback to mock data, exit process on DB connection failure
-    safeConsole.error('💥 MongoDB connection failed. Exiting...');
-    process.exit(1);
+    safeConsole.warn('⚠️  Running in limited mode without database');
+    safeConsole.info('💡 To fix this:');
+    safeConsole.info('   1. Start MongoDB: run start-mongodb.ps1');
+    safeConsole.info('   2. Or use MongoDB Atlas: https://www.mongodb.com/atlas');
+    safeConsole.info('   3. Update MONGODB_URI in backend/.env');
+    return false;
   }
 };
 
 // Connect to database
-connectDB();
+let dbConnected = false;
+connectDB().then(connected => {
+  dbConnected = connected;
+});
 
 // Health check endpoint
 app.get('/health', (req, res) => {
+  const dbStatus = mongoose.connection.readyState === 1 ? 'connected' : 'disconnected';
   res.json({
     status: 'OK',
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
     environment: process.env.NODE_ENV || 'development',
-    database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected'
+    database: dbStatus,
+    mode: dbStatus === 'connected' ? 'full' : 'limited',
+    message: dbStatus === 'connected' ? 'All systems operational' : 'Running without database - limited functionality'
   });
 });
 
 // API routes
-app.use('/api/auth', authRoutes);
-app.use('/api/users', userRoutes);
-app.use('/api/companies', companyRoutes);
-app.use('/api/investments', investmentRoutes);
-app.use('/api/analytics', analyticsRoutes);
-app.use('/api/assets', assetRoutes);
+app.use('/api', apiRoutes);
 
 // Root endpoint
 app.get('/', (req, res) => {
@@ -123,7 +121,10 @@ app.get('/', (req, res) => {
       companies: '/api/companies',
       investments: '/api/investments',
       analytics: '/api/analytics',
-      assets: '/api/assets'
+      assets: '/api/assets',
+      adminManagement: '/api/admin-management',
+      activityLogs: '/api/activity-logs',
+      companyAssignments: '/api/company-assignments'
     }
   });
 });
@@ -141,7 +142,10 @@ app.use('*', (req, res) => {
       'GET /api/companies',
       'GET /api/investments',
       'GET /api/analytics',
-      'GET /api/assets'
+      'GET /api/assets',
+      'GET /api/admin-management/pending',
+      'GET /api/activity-logs',
+      'GET /api/company-assignments'
     ]
   });
 });

@@ -104,14 +104,9 @@ const userSchema = new mongoose.Schema({
       type: Boolean,
       default: true
     }
-  }],
-  role: {
-    id: { type: String, required: true, default: 'investor' },
-    type: { type: String, required: true, default: 'investor' },
-    permissions: { type: [String], default: [] },
-    status: { type: String, default: 'active' },
-    createdAt: { type: Date, default: Date.now }
-  }
+  }]
+  // Note: Role is now stored in separate Role collection
+  // Embedded role field removed to avoid confusion
 }, {
   timestamps: true
 });

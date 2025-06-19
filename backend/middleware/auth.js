@@ -4,7 +4,7 @@
  */
 
 import jwt from 'jsonwebtoken';
-import { User, Role, Session } from '../models/index.js';
+import { User, Role, Session, CompanyAssignment } from '../models/index.js';
 import { config } from '../config/environment.js';
 import { AuthenticationError, AuthorizationError } from '../utils/errors.js';
 import { securityLogger } from '../utils/logger.js';
@@ -61,13 +61,51 @@ export const authenticate = async (req, res, next) => {
       });
     }
 
-    // Get user role
-    const role = await Role.findOne({ userId: user._id, isActive: true });
+    // Get user role - check both separate Role document and embedded role
+    // Allow pending status for admins to show pending approval screen
+    let role = await Role.findOne({
+      userId: user._id,
+      status: { $in: ['active', 'pending'] }
+    });
+
+    // If no separate role document, check for embedded role in user
+    if (!role && user.role) {
+      role = {
+        type: user.role.type || user.role.id,
+        permissions: user.role.permissions || [],
+        status: 'active' // Embedded roles are considered active
+      };
+    }
+
     if (!role) {
       return res.status(401).json({
         success: false,
         error: { message: 'User role not found' }
       });
+    }
+
+    // For admin users with pending status, only allow access to specific endpoints
+    if (role.type === 'admin' && role.status === 'pending') {
+      const allowedPendingPaths = [
+        '/api/admin-management/status',
+        '/api/auth/logout',
+        '/api/auth/me'
+      ];
+
+      const isAllowedPath = allowedPendingPaths.some(path =>
+        req.path.startsWith(path) || req.path === path
+      );
+
+      if (!isAllowedPath) {
+        return res.status(403).json({
+          success: false,
+          error: {
+            message: 'Admin approval pending',
+            code: 'ADMIN_PENDING_APPROVAL',
+            status: 'pending'
+          }
+        });
+      }
     }
 
     // Update session last activity
@@ -83,7 +121,8 @@ export const authenticate = async (req, res, next) => {
       role: {
         id: role.type,
         name: role.type,
-        permissions: role.permissions || []
+        permissions: role.permissions || [],
+        status: role.status || 'active'
       },
       isActive: user.isActive,
       emailVerified: user.emailVerified
@@ -198,4 +237,98 @@ export const requireRole = (roles) => {
 export const requirePermission = (permission) => {
   const [resource, action] = permission.split(':');
   return hasPermission(resource, action);
+};
+
+/**
+ * Check if admin user has access to specific company
+ */
+export const hasCompanyAccess = (companyIdParam = 'companyId') => {
+  return async (req, res, next) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({
+          success: false,
+          error: { message: 'Authentication required' }
+        });
+      }
+
+      // Super admins have access to all companies
+      if (req.user.role.id === 'superadmin') {
+        return next();
+      }
+
+      // For admin users, check company assignment
+      if (req.user.role.id === 'admin') {
+        const companyId = req.params[companyIdParam] || req.body[companyIdParam] || req.query[companyIdParam];
+
+        if (!companyId) {
+          return res.status(400).json({
+            success: false,
+            error: { message: 'Company ID is required' }
+          });
+        }
+
+        const assignment = await CompanyAssignment.findOne({
+          userId: req.user.id,
+          subCompanyId: companyId,
+          status: 'active'
+        });
+
+        if (!assignment) {
+          return res.status(403).json({
+            success: false,
+            error: { message: 'Access denied to this company' }
+          });
+        }
+
+        // Add company assignment to request for later use
+        req.companyAssignment = assignment;
+        return next();
+      }
+
+      // Investors don't have company-level access
+      return res.status(403).json({
+        success: false,
+        error: { message: 'Insufficient permissions' }
+      });
+    } catch (error) {
+      console.error('Company access check error:', error);
+      return res.status(500).json({
+        success: false,
+        error: { message: 'Internal server error' }
+      });
+    }
+  };
+};
+
+/**
+ * Get user's assigned companies (for admin users)
+ */
+export const getUserCompanies = async (userId) => {
+  try {
+    const assignments = await CompanyAssignment.find({
+      userId,
+      status: 'active'
+    }).populate('subCompanyId', 'name industry description logo');
+
+    return assignments.map(assignment => assignment.subCompanyId);
+  } catch (error) {
+    console.error('Get user companies error:', error);
+    return [];
+  }
+};
+
+/**
+ * Middleware to add user's assigned companies to request
+ */
+export const attachUserCompanies = async (req, res, next) => {
+  try {
+    if (req.user && req.user.role.id === 'admin') {
+      req.userCompanies = await getUserCompanies(req.user.id);
+    }
+    next();
+  } catch (error) {
+    console.error('Attach user companies error:', error);
+    next(); // Continue without companies data
+  }
 };

@@ -1,19 +1,37 @@
 import express from 'express';
 import jwt from 'jsonwebtoken';
+import rateLimit from 'express-rate-limit';
 import { body, validationResult } from 'express-validator';
 import User from '../models/User.js';
+import Role from '../models/Role.js';
+import Session from '../models/Session.js';
 import { config } from '../config/environment.js';
 import { sendVerificationEmail } from '../services/emailService.js';
+import ActivityLogService from '../services/ActivityLogService.js';
 
 const router = express.Router();
 
-// Generate JWT token using environment configuration
-const generateToken = (userId) => {
-  return jwt.sign({ userId }, config.JWT_SECRET, { expiresIn: config.JWT_EXPIRES_IN });
+// Rate limiting for authentication endpoints (development-friendly settings)
+const authLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 60 minutes (1 hour)
+  max: 50, // Limit each IP to 50 requests per windowMs (generous for development)
+  message: {
+    success: false,
+    message: 'Too many authentication attempts, please try again later.'
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// Generate JWT tokens using environment configuration
+const generateTokens = (userId) => {
+  const accessToken = jwt.sign({ userId, type: 'access' }, config.JWT_SECRET, { expiresIn: config.JWT_EXPIRES_IN });
+  const refreshToken = jwt.sign({ userId, type: 'refresh' }, config.JWT_REFRESH_SECRET, { expiresIn: config.JWT_REFRESH_EXPIRES_IN });
+  return { accessToken, refreshToken };
 };
 
 // Login endpoint using real database
-router.post('/login', [
+router.post('/login', authLimiter, [
   body('email').isEmail().normalizeEmail().withMessage('Please provide a valid email'),
   body('password').notEmpty().withMessage('Password is required')
 ], async (req, res) => {
@@ -71,15 +89,63 @@ router.post('/login', [
     // Reset login attempts on successful login
     await user.resetLoginAttempts();
 
-    // Generate JWT token
-    const token = generateToken(user._id);
+    // Generate JWT tokens
+    const { accessToken, refreshToken } = generateTokens(user._id);
+
+    // Create session for the tokens
+    const expiresInSeconds = parseInt(config.JWT_EXPIRES_IN, 10);
+    const expiresAt = new Date(Date.now() + expiresInSeconds * 1000);
+    const session = new Session({
+      token: accessToken,
+      refreshToken,
+      userId: user._id,
+      isActive: true,
+      expiresAt
+    });
+    await session.save();
 
     // Add login history
     const ipAddress = req.ip;
     const userAgent = req.get('User-Agent') || 'Unknown';
     await user.addLoginHistory(ipAddress, userAgent, true);
 
+    // Get user role from separate Role document (primary method)
+    // Include pending status for admin approval workflow
+    let userRole = await Role.findOne({
+      userId: user._id,
+      status: { $in: ['active', 'pending'] }
+    });
+
+    // If no separate role document, check for embedded role in user (legacy support)
+    if (!userRole && user.role) {
+      userRole = {
+        type: user.role.type || user.role.id,
+        permissions: user.role.permissions || [],
+        status: 'active' // Embedded roles are considered active
+      };
+      console.log('[DEBUG] Using embedded role for legacy user:', user.email, 'Role:', userRole.type);
+    }
+
+    // Default to investor if no role found (should not happen for properly registered users)
+    if (!userRole) {
+      userRole = { type: 'investor', permissions: [], status: 'active' };
+      console.log('[DEBUG] No role found, defaulting to investor for user:', user.email);
+    }
+
     console.log('[DEBUG] User object before login response:', JSON.stringify(user));
+    console.log('[DEBUG] Final user role for login response:', JSON.stringify(userRole));
+
+    // Log user login activity
+    try {
+      await ActivityLogService.logUserLogin(user._id, {
+        ip: req.ip,
+        userAgent: req.get('User-Agent'),
+        loginTime: new Date()
+      });
+    } catch (logError) {
+      console.error('Failed to log user login activity:', logError);
+    }
+
     res.json({
       success: true,
       data: {
@@ -88,11 +154,16 @@ router.post('/login', [
           email: user.email,
           firstName: user.firstName,
           lastName: user.lastName,
-          role: user.role || { id: 'investor', type: 'investor', permissions: [] }
+          role: {
+            id: userRole.type,
+            type: userRole.type,
+            permissions: userRole.permissions || [],
+            status: userRole.status || 'active'
+          }
         },
-        token,
-        refreshToken: '', // Add real refresh token if implemented
-        expiresIn: 3600   // Or your actual expiry time in seconds
+        token: accessToken,
+        refreshToken,
+        expiresIn: config.JWT_EXPIRES_IN
       }
     });
   } catch (error) {
@@ -104,12 +175,117 @@ router.post('/login', [
   }
 });
 
+// Refresh token endpoint
+router.post('/refresh', [
+  body('refreshToken').notEmpty().withMessage('Refresh token is required')
+], async (req, res) => {
+  try {
+    // Check validation errors
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        errors: errors.array()
+      });
+    }
+
+    const { refreshToken } = req.body;
+
+    // Verify refresh token
+    const decoded = jwt.verify(refreshToken, config.JWT_REFRESH_SECRET);
+
+    if (decoded.type !== 'refresh') {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid token type'
+      });
+    }
+
+    // Find session with this refresh token
+    const session = await Session.findOne({
+      refreshToken,
+      userId: decoded.userId,
+      isActive: true
+    });
+
+    if (!session) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid refresh token'
+      });
+    }
+
+    // Get user and role
+    const user = await User.findById(decoded.userId);
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    const userRole = await Role.findOne({ userId: user._id });
+    if (!userRole) {
+      return res.status(401).json({
+        success: false,
+        message: 'User role not found'
+      });
+    }
+
+    // Generate new tokens
+    const { accessToken, refreshToken: newRefreshToken } = generateTokens(user._id);
+
+    // Update session with new tokens
+    session.token = accessToken;
+    session.refreshToken = newRefreshToken;
+    session.expiresAt = new Date(Date.now() + parseInt(config.JWT_EXPIRES_IN, 10) * 1000);
+    session.lastActivity = new Date();
+    await session.save();
+
+    res.json({
+      success: true,
+      data: {
+        user: {
+          id: user._id,
+          email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          role: {
+            id: userRole.type,
+            type: userRole.type,
+            permissions: userRole.permissions || [],
+            status: userRole.status || 'active'
+          }
+        },
+        token: accessToken,
+        refreshToken: newRefreshToken,
+        expiresIn: config.JWT_EXPIRES_IN
+      }
+    });
+  } catch (error) {
+    if (error.name === 'JsonWebTokenError' || error.name === 'TokenExpiredError') {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid or expired refresh token'
+      });
+    }
+    console.error('Refresh token error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
+});
+
 // Register endpoint using real database
-router.post('/register', [
+router.post('/register', authLimiter, [
   body('email').isEmail().normalizeEmail().withMessage('Please provide a valid email'),
   body('firstName').trim().isLength({ min: 1 }).withMessage('First name is required'),
   body('lastName').trim().isLength({ min: 1 }).withMessage('Last name is required'),
-  body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
+  body('password').isLength({ min: 8 }).withMessage('Password must be at least 8 characters')
+    .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/)
+    .withMessage('Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character'),
   body('role').isIn(['superadmin', 'admin', 'investor']).withMessage('Invalid role')
 ], async (req, res) => {
   try {
@@ -125,7 +301,7 @@ router.post('/register', [
 
     const { email, password, firstName, lastName, role: roleType } = req.body;
 
-    console.log(`[Registration Attempt] Email: ${email} | Timestamp: ${new Date().toISOString()}`);
+    console.log(`[Registration Attempt] Email: ${email} | Role: ${roleType} | Timestamp: ${new Date().toISOString()}`);
 
     // Check if user already exists
     const existingUser = await User.findOne({ email });
@@ -149,19 +325,12 @@ router.post('/register', [
       });
     }
 
-    // Create new user instance
+    // Create new user instance (without role in user document)
     const newUser = new User({
       email,
       password,
       firstName,
-      lastName,
-      role: {
-        id: roleType,
-        type: roleType,
-        permissions: [],
-        status: 'active',
-        createdAt: new Date()
-      }
+      lastName
     });
 
     // Generate email verification token
@@ -169,6 +338,13 @@ router.post('/register', [
 
     // Save user with token
     await newUser.save();
+
+    // Create separate Role document
+    const newRole = new Role({
+      userId: newUser._id,
+      type: roleType
+    });
+    await newRole.save();
 
     // Send verification email
     try {
@@ -191,7 +367,11 @@ router.post('/register', [
           lastName: newUser.lastName,
           created_at: newUser.createdAt,
           updated_at: newUser.updatedAt,
-          role: newUser.role
+          role: {
+            id: newRole.type,
+            type: newRole.type,
+            permissions: newRole.permissions
+          }
         }
       }
     });
@@ -261,6 +441,202 @@ router.get('/verify-email', async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Internal server error'
+    });
+  }
+});
+
+// Logout endpoint
+router.post('/logout', async (req, res) => {
+  try {
+    const authHeader = req.header('Authorization');
+    const token = authHeader && authHeader.startsWith('Bearer ')
+      ? authHeader.substring(7)
+      : null;
+
+    if (token) {
+      // Deactivate the session
+      await Session.findOneAndUpdate(
+        { token },
+        { isActive: false },
+        { new: true }
+      );
+    }
+
+    res.json({
+      success: true,
+      message: 'Logged out successfully'
+    });
+  } catch (error) {
+    console.error('Logout error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
+});
+
+// Debug endpoint to check user status
+router.get('/debug/users', async (req, res) => {
+  try {
+    const users = await User.find({}, 'email firstName lastName emailVerified isActive role').limit(10);
+    const roles = await Role.find({}).populate('userId', 'email firstName lastName').limit(10);
+
+    res.json({
+      success: true,
+      data: {
+        users: users.map(user => ({
+          id: user._id,
+          email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          emailVerified: user.emailVerified,
+          isActive: user.isActive,
+          embeddedRole: user.role
+        })),
+        separateRoles: roles.map(role => ({
+          id: role._id,
+          userId: role.userId?._id || role.userId,
+          userEmail: role.userId?.email || 'Unknown',
+          type: role.type,
+          status: role.status,
+          permissions: role.permissions,
+          createdAt: role.createdAt
+        }))
+      }
+    });
+  } catch (error) {
+    console.error('Debug users error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
+});
+
+// Test endpoint to verify role assignment flow
+router.post('/debug/test-role-flow', async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email is required for testing'
+      });
+    }
+
+    // Find user
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Find role
+    const role = await Role.findOne({ userId: user._id });
+    if (!role) {
+      return res.status(404).json({
+        success: false,
+        message: 'Role not found for user'
+      });
+    }
+
+    // Test login flow
+    const loginResult = {
+      user: {
+        id: user._id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        role: {
+          id: role.type,
+          type: role.type,
+          status: role.status,
+          permissions: role.permissions || []
+        }
+      }
+    };
+
+    res.json({
+      success: true,
+      message: 'Role flow test completed',
+      data: {
+        userFound: true,
+        roleFound: true,
+        roleType: role.type,
+        roleStatus: role.status,
+        loginResult,
+        expectedBehavior: {
+          shouldShowPendingScreen: role.type === 'admin' && role.status === 'pending',
+          shouldHaveCompanyAccess: role.type === 'admin' && role.status === 'active',
+          shouldAccessSuperadmin: role.type === 'superadmin'
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Test role flow error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
+});
+
+// Migration endpoint to remove embedded roles from existing users
+router.post('/debug/migrate-roles', async (req, res) => {
+  try {
+    console.log('[MIGRATION] Starting role migration...');
+
+    // Find all users with embedded roles
+    const usersWithEmbeddedRoles = await User.find({ role: { $exists: true } });
+    console.log(`[MIGRATION] Found ${usersWithEmbeddedRoles.length} users with embedded roles`);
+
+    let migrated = 0;
+    let skipped = 0;
+
+    for (const user of usersWithEmbeddedRoles) {
+      // Check if user already has a separate Role document
+      const existingRole = await Role.findOne({ userId: user._id });
+
+      if (!existingRole) {
+        // Create separate Role document from embedded role
+        const newRole = new Role({
+          userId: user._id,
+          type: user.role.type || user.role.id || 'investor',
+          permissions: user.role.permissions || [],
+          status: 'active'
+        });
+        await newRole.save();
+        console.log(`[MIGRATION] Created separate role for ${user.email}: ${newRole.type}`);
+      }
+
+      // Remove embedded role from user
+      await User.updateOne(
+        { _id: user._id },
+        { $unset: { role: 1 } }
+      );
+      migrated++;
+    }
+
+    console.log(`[MIGRATION] Migration complete. Migrated: ${migrated}, Skipped: ${skipped}`);
+
+    res.json({
+      success: true,
+      message: 'Role migration completed',
+      data: {
+        migrated,
+        skipped,
+        total: usersWithEmbeddedRoles.length
+      }
+    });
+  } catch (error) {
+    console.error('Migration error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Migration failed',
+      error: error.message
     });
   }
 });

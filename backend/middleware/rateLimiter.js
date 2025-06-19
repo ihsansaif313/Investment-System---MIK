@@ -94,7 +94,7 @@ export const passwordResetRateLimiter = rateLimiter({
  */
 export const apiRateLimiter = rateLimiter({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
+  max: 1000, // increased limit for local development
   message: {
     success: false,
     error: {

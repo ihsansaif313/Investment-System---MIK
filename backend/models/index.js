@@ -10,6 +10,7 @@ import {
   roleSchema,
   ownerCompanySchema,
   subCompanySchema,
+  companyAssignmentSchema,
   assetSchema,
   investmentSchema,
   investorInvestmentSchema,
@@ -192,6 +193,7 @@ const User = mongoose.models.User || mongoose.model('User', userSchema);
 const Role = mongoose.models.Role || mongoose.model('Role', roleSchema);
 const OwnerCompany = mongoose.models.OwnerCompany || mongoose.model('OwnerCompany', ownerCompanySchema);
 const SubCompany = mongoose.models.SubCompany || mongoose.model('SubCompany', subCompanySchema);
+const CompanyAssignment = mongoose.models.CompanyAssignment || mongoose.model('CompanyAssignment', companyAssignmentSchema);
 const Asset = mongoose.models.Asset || mongoose.model('Asset', assetSchema);
 const Investment = mongoose.models.Investment || mongoose.model('Investment', investmentSchema);
 const InvestorInvestment = mongoose.models.InvestorInvestment || mongoose.model('InvestorInvestment', investorInvestmentSchema);
@@ -205,6 +207,7 @@ export {
   Role,
   OwnerCompany,
   SubCompany,
+  CompanyAssignment,
   Asset,
   Investment,
   InvestorInvestment,

@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { DataProvider } from './contexts/DataContext';
+import { CompanySelectionProvider } from './contexts/CompanySelectionContext';
 import { ToastProvider } from './components/ui/Toast';
 import ErrorBoundary from './components/ui/ErrorBoundary';
 // Auth pages
@@ -15,6 +16,8 @@ import SubCompanyDetail from './pages/superadmin/SubCompanyDetail';
 import CreateSubCompany from './pages/superadmin/CreateSubCompany';
 
 import Companies from './pages/superadmin/Companies';
+import CompanyManagement from './pages/superadmin/CompanyManagement';
+import AdminAssignments from './pages/superadmin/AdminAssignments';
 // Admin pages
 import AdminDashboard from './pages/admin/Dashboard';
 import Investments from './pages/admin/Investments';
@@ -22,6 +25,7 @@ import Investors from './pages/admin/Investors';
 // Investor pages
 import InvestorDashboard from './pages/investor/Dashboard';
 import Portfolio from './pages/investor/Portfolio';
+import InvestorPortfolioDashboard from './pages/investor/InvestorPortfolioDashboard';
 import Marketplace from './pages/investor/Marketplace';
 import PendingApproval from './pages/investor/PendingApproval';
 // Shared modules
@@ -35,11 +39,12 @@ import ProtectedRoute from './components/routing/ProtectedRoute';
 function App() {
   return (
     <ErrorBoundary>
-      <Router>
+      <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <ToastProvider>
           <AuthProvider>
             <DataProvider>
-              <div className="w-full min-h-screen bg-slate-900 text-white font-sans">
+              <CompanySelectionProvider>
+                <div className="w-full min-h-screen bg-slate-900 text-white font-sans">
                 <Routes>
                   {/* Public routes */}
                   <Route path="/login" element={<Login />} />
@@ -49,6 +54,12 @@ function App() {
                   {/* Superadmin routes */}
                   <Route path="/superadmin/dashboard" element={<ProtectedRoute role="superadmin">
                         <SuperadminDashboard />
+                      </ProtectedRoute>} />
+                  <Route path="/superadmin/company-management" element={<ProtectedRoute role="superadmin">
+                        <CompanyManagement />
+                      </ProtectedRoute>} />
+                  <Route path="/superadmin/admin-assignments" element={<ProtectedRoute role="superadmin">
+                        <AdminAssignments />
                       </ProtectedRoute>} />
                   <Route path="/superadmin/companies" element={<ProtectedRoute role="superadmin">
                         <Companies />
@@ -80,6 +91,9 @@ function App() {
                         <InvestorDashboard />
                       </ProtectedRoute>} />
                   <Route path="/investor/portfolio" element={<ProtectedRoute role="investor">
+                        <InvestorPortfolioDashboard />
+                      </ProtectedRoute>} />
+                  <Route path="/investor/portfolio-legacy" element={<ProtectedRoute role="investor">
                         <Portfolio />
                       </ProtectedRoute>} />
                   <Route path="/investor/marketplace" element={<ProtectedRoute role="investor">
@@ -104,7 +118,8 @@ function App() {
                   {/* Default redirect */}
                   <Route path="/" element={<Navigate to="/login" replace />} />
                 </Routes>
-              </div>
+                </div>
+              </CompanySelectionProvider>
             </DataProvider>
           </AuthProvider>
         </ToastProvider>
