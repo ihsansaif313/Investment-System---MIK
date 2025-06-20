@@ -1,4 +1,5 @@
 import { ActivityLog } from '../models/index.js';
+import logger from '../utils/logger.js';
 
 /**
  * Activity Log Service
@@ -27,7 +28,7 @@ class ActivityLogService {
       await log.save();
       return log;
     } catch (error) {
-      console.error('Failed to log user login:', error);
+      logger.error('Failed to log user login', { error: error.message, userId });
       return null;
     }
   }

@@ -125,25 +125,25 @@ const EmptyState: React.FC<EmptyStateProps> = ({
 
   const sizeClasses = {
     sm: {
-      container: 'py-8 px-4',
-      icon: 'w-16 h-16 mb-4',
-      title: 'text-lg',
-      message: 'text-sm',
-      spacing: 'space-y-3'
+      container: 'py-6 sm:py-8 px-3 sm:px-4',
+      icon: 'w-12 h-12 sm:w-16 sm:h-16 mb-3 sm:mb-4',
+      title: 'text-base sm:text-lg',
+      message: 'text-xs sm:text-sm',
+      spacing: 'space-y-2 sm:space-y-3'
     },
     md: {
-      container: 'py-12 px-6',
-      icon: 'w-20 h-20 mb-6',
-      title: 'text-xl',
-      message: 'text-base',
-      spacing: 'space-y-4'
+      container: 'py-8 sm:py-12 px-4 sm:px-6',
+      icon: 'w-16 h-16 sm:w-20 sm:h-20 mb-4 sm:mb-6',
+      title: 'text-lg sm:text-xl',
+      message: 'text-sm sm:text-base',
+      spacing: 'space-y-3 sm:space-y-4'
     },
     lg: {
-      container: 'py-16 px-8',
-      icon: 'w-24 h-24 mb-8',
-      title: 'text-2xl',
-      message: 'text-lg',
-      spacing: 'space-y-6'
+      container: 'py-12 sm:py-16 px-6 sm:px-8',
+      icon: 'w-20 h-20 sm:w-24 sm:h-24 mb-6 sm:mb-8',
+      title: 'text-xl sm:text-2xl',
+      message: 'text-base sm:text-lg',
+      spacing: 'space-y-4 sm:space-y-6'
     }
   };
 
@@ -162,28 +162,30 @@ const EmptyState: React.FC<EmptyStateProps> = ({
           {emptyTitle}
         </h3>
         
-        <p className={`text-slate-400 ${sizeConfig.message} max-w-md mx-auto`}>
+        <p className={`text-slate-400 ${sizeConfig.message} max-w-xs sm:max-w-md mx-auto leading-relaxed`}>
           {emptyMessage}
         </p>
 
         {(onAction || onSecondaryAction) && (
-          <div className="flex gap-3 justify-center flex-wrap pt-2">
+          <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 justify-center items-stretch sm:items-center pt-2">
             {onAction && (
               <Button
                 variant="primary"
                 onClick={onAction}
                 size={size === 'lg' ? 'md' : 'sm'}
-                leftIcon={type === 'companies' || type === 'users' || type === 'investments' ? <Plus size={16} /> : undefined}
+                leftIcon={type === 'companies' || type === 'users' || type === 'investments' ? <Plus size={14} className="sm:w-4 sm:h-4" /> : undefined}
+                className="w-full sm:w-auto"
               >
                 {emptyActionLabel}
               </Button>
             )}
-            
+
             {onSecondaryAction && (
               <Button
                 variant="secondary"
                 onClick={onSecondaryAction}
                 size={size === 'lg' ? 'md' : 'sm'}
+                className="w-full sm:w-auto"
               >
                 {secondaryActionLabel}
               </Button>

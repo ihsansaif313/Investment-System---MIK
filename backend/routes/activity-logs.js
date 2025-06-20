@@ -1,6 +1,7 @@
 import express from 'express';
 import { authenticate, authorize } from '../middleware/auth.js';
 import { ActivityLog } from '../models/index.js';
+import logger from '../utils/logger.js';
 
 const router = express.Router();
 
@@ -229,7 +230,7 @@ router.post('/', authenticate, async (req, res) => {
       message: 'Activity logged successfully'
     });
   } catch (error) {
-    console.error('Create activity log error:', error);
+    logger.error('Create activity log error', { error: error.message, userId: req.user.id });
     res.status(500).json({
       success: false,
       message: 'Failed to create activity log',

@@ -11,57 +11,184 @@ import mongoose from 'mongoose';
 import apiRoutes from './routes/index.js';
 import { logStartup, safeConsole } from './utils/console.js';
 
+// Import production security middleware
+import {
+  disableDevFeatures,
+  productionSecurity,
+  productionErrorHandler,
+  validateProductionConfig
+} from './middleware/production.js';
+
+// Import performance middleware
+import {
+  compressionMiddleware,
+  performanceMonitoring,
+  optimizeResponse
+} from './middleware/performance.js';
+
 // Load environment variables
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Security middleware
-app.use(helmet());
+// Production configuration validation
+app.use(validateProductionConfig);
 
-// CORS configuration
+// Performance middleware
+app.use(compressionMiddleware);
+app.use(performanceMonitoring);
+
+// Production security middleware
+app.use(productionSecurity);
+app.use(disableDevFeatures);
+
+// Security middleware
+app.use(helmet({
+  contentSecurityPolicy: process.env.NODE_ENV === 'production' ? {
+    directives: {
+      defaultSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      scriptSrc: ["'self'"],
+      imgSrc: ["'self'", "data:", "https:"],
+      connectSrc: ["'self'"],
+      fontSrc: ["'self'"],
+      objectSrc: ["'none'"],
+      mediaSrc: ["'self'"],
+      frameSrc: ["'none'"],
+    },
+  } : false
+}));
+
+// CORS configuration - Production-ready with domain validation
+const corsOrigins = process.env.CORS_ORIGIN || 'http://localhost:5173';
 const allowedOrigins = [
-  process.env.CORS_ORIGIN || 'http://localhost:5173',
+  ...corsOrigins.split(',').map(origin => origin.trim()),
+  // Development origins
   'http://localhost:5173',
-  'http://localhost:5174'
+  'http://localhost:5174',
+  'http://127.0.0.1:5173',
+  'http://192.168.1.8:5173',
+  // Production origins (add your production domains here)
+  'https://your-production-domain.com',
+  'https://www.your-production-domain.com'
 ];
+
+// Production CORS validation
+const validateCorsOrigin = (origin) => {
+  if (!origin) return true; // Allow requests with no origin (mobile apps, curl)
+
+  // In production, be more strict about origin validation
+  if (process.env.NODE_ENV === 'production') {
+    // Only allow HTTPS in production (except for localhost)
+    if (!origin.startsWith('https://') && !origin.includes('localhost') && !origin.includes('127.0.0.1')) {
+      return false;
+    }
+
+    // Block suspicious origins
+    const suspiciousPatterns = [
+      /\.ngrok\.io$/,
+      /\.herokuapp\.com$/,
+      /\.repl\.co$/,
+      /\.glitch\.me$/
+    ];
+
+    if (suspiciousPatterns.some(pattern => pattern.test(origin))) {
+      return false;
+    }
+  }
+
+  return true;
+};
 
 app.use(cors({
   origin: function(origin, callback) {
-    safeConsole.debug('CORS origin:', origin);
-    // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return callback(null, true);
+    safeConsole.debug('CORS origin check:', origin);
 
-    // Normalize origin by removing trailing slash if present
-    const normalizedOrigin = origin.endsWith('/') ? origin.slice(0, -1) : origin;
-
-    // Normalize allowed origins similarly
-    const normalizedAllowedOrigins = allowedOrigins.map(o => o.endsWith('/') ? o.slice(0, -1) : o);
-
-    if (normalizedAllowedOrigins.indexOf(normalizedOrigin) === -1) {
-      const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
+    // Basic validation
+    if (!validateCorsOrigin(origin)) {
+      const msg = 'CORS policy violation: Invalid origin protocol or domain';
       safeConsole.error(msg, origin);
       return callback(new Error(msg), false);
     }
+
+    // Allow requests with no origin
+    if (!origin) return callback(null, true);
+
+    // Normalize origin by removing trailing slash
+    const normalizedOrigin = origin.endsWith('/') ? origin.slice(0, -1) : origin;
+    const normalizedAllowedOrigins = allowedOrigins.map(o => o.endsWith('/') ? o.slice(0, -1) : o);
+
+    if (normalizedAllowedOrigins.indexOf(normalizedOrigin) === -1) {
+      const msg = 'CORS policy violation: Origin not in allowed list';
+      safeConsole.error(msg, { origin, allowed: normalizedAllowedOrigins });
+      return callback(new Error(msg), false);
+    }
+
+    safeConsole.debug('CORS origin allowed:', normalizedOrigin);
     return callback(null, true);
   },
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: [
+    'Content-Type',
+    'Authorization',
+    'X-Requested-With',
+    'Accept',
+    'Origin',
+    'Cache-Control',
+    'X-File-Name'
+  ],
+  exposedHeaders: [
+    'X-Response-Time',
+    'X-Cache',
+    'X-Memory-Usage',
+    'X-Memory-Delta'
+  ],
+  maxAge: process.env.NODE_ENV === 'production' ? 86400 : 0 // Cache preflight for 24h in production
 }));
 
-// Rate limiting
+// Rate limiting - Stricter in production
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
-  message: 'Too many requests from this IP, please try again later.'
+  windowMs: (process.env.RATE_LIMIT_WINDOW || 15) * 60 * 1000, // 15 minutes
+  max: process.env.NODE_ENV === 'production'
+    ? (process.env.RATE_LIMIT_MAX || 50)  // Stricter in production
+    : (process.env.RATE_LIMIT_MAX || 100), // More lenient in development
+  message: {
+    error: 'Too many requests from this IP, please try again later.',
+    retryAfter: Math.ceil((process.env.RATE_LIMIT_WINDOW || 15) * 60),
+    code: 'RATE_LIMIT_EXCEEDED'
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  // Skip rate limiting for health checks
+  skip: (req) => req.path === '/health'
 });
+
+// Apply general rate limiting
 app.use('/api/', limiter);
 
-// Body parsing middleware
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+// Stricter rate limiting for authentication endpoints
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: process.env.NODE_ENV === 'production' ? 5 : 10, // Very strict for auth
+  message: {
+    error: 'Too many authentication attempts, please try again later.',
+    code: 'AUTH_RATE_LIMIT_EXCEEDED'
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+app.use('/api/auth', authLimiter);
+
+// Body parsing middleware with production limits
+const bodyLimit = process.env.NODE_ENV === 'production' ? '5mb' : '10mb';
+app.use(express.json({ limit: bodyLimit }));
+app.use(express.urlencoded({ extended: true, limit: bodyLimit }));
+
+// Response optimization
+app.use(optimizeResponse);
 
 
 // MongoDB connection
@@ -150,7 +277,10 @@ app.use('*', (req, res) => {
   });
 });
 
-// Global error handler
+// Global error handler - Use production error handler
+app.use(productionErrorHandler);
+
+// Fallback error handler
 app.use((error, req, res, next) => {
   safeConsole.error('❌ Server Error:', error);
 
@@ -180,3 +310,4 @@ app.listen(PORT, () => {
 });
 
 export default app;
+

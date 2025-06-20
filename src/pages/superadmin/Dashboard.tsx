@@ -232,12 +232,12 @@ const SuperadminDashboard: React.FC = () => {
   return (
     <DashboardLayout title="Superadmin Dashboard" subtitle="Overview of all sub-companies and investments">
       {/* Header Actions */}
-      <div className="flex justify-between items-center mb-6">
-        <div className="flex items-center gap-4">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-4 sm:mb-6">
+        <div className="flex items-center gap-2 sm:gap-4">
           <select
             value={selectedTimeRange}
             onChange={(e) => setSelectedTimeRange(e.target.value as any)}
-            className="bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-yellow-500"
+            className="bg-slate-800 border border-slate-600 rounded-lg px-2 sm:px-3 py-2 text-white text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-yellow-500 min-w-0 flex-1 sm:flex-none"
           >
             <option value="7d">Last 7 days</option>
             <option value="30d">Last 30 days</option>
@@ -246,34 +246,41 @@ const SuperadminDashboard: React.FC = () => {
           </select>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
           <Button
             variant="secondary"
-            leftIcon={<Activity size={16} />}
+            size="sm"
+            leftIcon={<Activity size={14} className="sm:w-4 sm:h-4" />}
             onClick={manualRefresh}
             title={`Last updated: ${lastUpdate.toLocaleTimeString()}`}
+            className="w-full sm:w-auto"
           >
-            Refresh
+            <span className="sm:inline">Refresh</span>
           </Button>
           <Button
             variant="secondary"
-            leftIcon={<UserPlus size={16} />}
+            size="sm"
+            leftIcon={<UserPlus size={14} className="sm:w-4 sm:h-4" />}
             onClick={() => navigate('/superadmin/users')}
+            className="w-full sm:w-auto"
           >
-            Manage Users
+            <span className="sm:inline">Manage Users</span>
           </Button>
           <Button
             variant="primary"
-            leftIcon={<Plus size={16} />}
+            size="sm"
+            leftIcon={<Plus size={14} className="sm:w-4 sm:h-4" />}
             onClick={() => navigate('/superadmin/company/new')}
+            className="w-full sm:w-auto"
           >
-            Create Sub-Company
+            <span className="hidden sm:inline">Create Sub-Company</span>
+            <span className="sm:hidden">Create Company</span>
           </Button>
         </div>
       </div>
 
       {/* Key Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 mb-6 sm:mb-8">
         <MetricCard
           title="Total Sub-Companies"
           value={subCompanies.length}
@@ -284,7 +291,7 @@ const SuperadminDashboard: React.FC = () => {
                Math.max(performanceData[performanceData.length - 2]?.investmentCount || 1, 1) * 100 : 0,
             type: 'increase'
           }}
-          icon={<Building2 className="w-6 h-6 text-yellow-500" />}
+          icon={<Building2 className="w-5 h-5 sm:w-6 sm:h-6 text-yellow-500" />}
           chartData={performanceData.slice(-7).map(d => ({ value: d.totalInvestment }))}
           chartType="area"
         />
@@ -299,7 +306,7 @@ const SuperadminDashboard: React.FC = () => {
                Math.max(performanceData[performanceData.length - 2]?.totalInvestment || 1, 1) * 100 : 0,
             type: 'increase'
           }}
-          icon={<TrendingUp className="w-6 h-6 text-green-500" />}
+          icon={<TrendingUp className="w-5 h-5 sm:w-6 sm:h-6 text-green-500" />}
           chartData={performanceData.slice(-7).map(d => ({ value: d.totalReturn }))}
           chartType="line"
         />
@@ -311,7 +318,7 @@ const SuperadminDashboard: React.FC = () => {
             value: globalMetrics.roi,
             type: globalMetrics.roi >= 0 ? 'increase' : 'decrease'
           }}
-          icon={<DollarSign className="w-6 h-6 text-blue-500" />}
+          icon={<DollarSign className="w-5 h-5 sm:w-6 sm:h-6 text-blue-500" />}
           chartData={performanceData.slice(-7).map(d => ({ value: d.totalInvestment + d.totalReturn }))}
           chartType="bar"
         />
@@ -325,26 +332,26 @@ const SuperadminDashboard: React.FC = () => {
               (performanceData[performanceData.length - 2]?.roi || 0) : 0,
             type: globalMetrics.roi >= 0 ? 'increase' : 'decrease'
           }}
-          icon={<Activity className="w-6 h-6 text-purple-500" />}
+          icon={<Activity className="w-5 h-5 sm:w-6 sm:h-6 text-purple-500" />}
           chartData={performanceData.slice(-7).map(d => ({ value: d.roi }))}
           chartType="line"
         />
       </div>
 
       {/* Charts Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
         {/* Performance Trend */}
-        <div className="lg:col-span-2">
-          <Card className="p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-white">Performance Trend</h3>
-              <div className="flex items-center gap-2 text-sm text-slate-400">
+        <div className="xl:col-span-2">
+          <Card className="p-3 sm:p-4 lg:p-6">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-3 sm:mb-4 gap-2">
+              <h3 className="text-base sm:text-lg font-semibold text-white">Performance Trend</h3>
+              <div className="flex items-center gap-2 text-xs sm:text-sm text-slate-400">
                 <div className="flex items-center gap-1">
-                  <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
+                  <div className="w-2 h-2 sm:w-3 sm:h-3 bg-yellow-500 rounded-full"></div>
                   <span>Investment</span>
                 </div>
                 <div className="flex items-center gap-1">
-                  <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                  <div className="w-2 h-2 sm:w-3 sm:h-3 bg-green-500 rounded-full"></div>
                   <span>Returns</span>
                 </div>
               </div>
@@ -358,11 +365,11 @@ const SuperadminDashboard: React.FC = () => {
                   { key: 'totalInvestment', name: 'Total Investment', color: '#EAB308' },
                   { key: 'totalReturn', name: 'Total Returns', color: '#10B981' }
                 ]}
-                height={300}
-                className="bg-transparent p-0"
+                height={250}
+                className="bg-transparent p-0 sm:h-[300px]"
               />
             ) : (
-              <div className="h-64 flex items-center justify-center text-slate-400">
+              <div className="h-48 sm:h-64 flex items-center justify-center text-slate-400 text-sm">
                 No performance data available
               </div>
             )}
@@ -371,25 +378,25 @@ const SuperadminDashboard: React.FC = () => {
 
         {/* Investment Status Distribution */}
         <div>
-          <Card className="p-6">
-            <h3 className="text-lg font-semibold text-white mb-4">Investment Status</h3>
+          <Card className="p-3 sm:p-4 lg:p-6">
+            <h3 className="text-base sm:text-lg font-semibold text-white mb-3 sm:mb-4">Investment Status</h3>
             <CustomPieChart
               data={investmentStatusData}
-              height={300}
-              className="bg-transparent p-0"
+              height={250}
+              className="bg-transparent p-0 sm:h-[300px]"
             />
           </Card>
         </div>
       </div>
 
       {/* Sub-Companies Table */}
-      <div className="mb-8">
-        <Card className="p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-white">Sub-Companies</h3>
+      <div className="mb-6 sm:mb-8">
+        <Card className="p-3 sm:p-4 lg:p-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-3 sm:mb-4 gap-2">
+            <h3 className="text-base sm:text-lg font-semibold text-white">Sub-Companies</h3>
             <Link
               to="/superadmin/companies"
-              className="text-yellow-500 hover:text-yellow-400 text-sm font-medium"
+              className="text-yellow-500 hover:text-yellow-400 text-xs sm:text-sm font-medium transition-colors"
             >
               View All →
             </Link>
@@ -422,18 +429,18 @@ const SuperadminDashboard: React.FC = () => {
       </div>
 
       {/* Recent Activity */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card className="p-6">
-          <h3 className="text-lg font-semibold text-white mb-4">Recent Activity</h3>
-          <div className="space-y-4">
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 sm:gap-6">
+        <Card className="p-3 sm:p-4 lg:p-6">
+          <h3 className="text-base sm:text-lg font-semibold text-white mb-3 sm:mb-4">Recent Activity</h3>
+          <div className="space-y-3 sm:space-y-4">
             {activityLogs.length > 0 ? (
               activityLogs.slice(0, 5).map((activity) => (
-                <div key={activity.id} className="flex items-start gap-3">
-                  <div className="w-8 h-8 bg-yellow-500/20 rounded-full flex items-center justify-center flex-shrink-0">
-                    <Activity className="w-4 h-4 text-yellow-500" />
+                <div key={activity.id} className="flex items-start gap-2 sm:gap-3">
+                  <div className="w-6 h-6 sm:w-8 sm:h-8 bg-yellow-500/20 rounded-full flex items-center justify-center flex-shrink-0">
+                    <Activity className="w-3 h-3 sm:w-4 sm:h-4 text-yellow-500" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm text-white">{activity.description}</p>
+                    <p className="text-xs sm:text-sm text-white leading-relaxed">{activity.description}</p>
                     <p className="text-xs text-slate-400 mt-1">
                       {new Date(activity.timestamp).toLocaleString()}
                     </p>
@@ -441,22 +448,22 @@ const SuperadminDashboard: React.FC = () => {
                 </div>
               ))
             ) : (
-              <p className="text-slate-400 text-sm">No recent activity</p>
+              <p className="text-slate-400 text-xs sm:text-sm">No recent activity</p>
             )}
           </div>
         </Card>
 
         {/* Company Value Distribution */}
-        <Card className="p-6">
-          <h3 className="text-lg font-semibold text-white mb-4">Company Value Distribution</h3>
+        <Card className="p-3 sm:p-4 lg:p-6">
+          <h3 className="text-base sm:text-lg font-semibold text-white mb-3 sm:mb-4">Company Value Distribution</h3>
           {companyDistributionData.length > 0 ? (
             <CustomDonutChart
               data={companyDistributionData}
-              height={250}
-              className="bg-transparent p-0"
+              height={200}
+              className="bg-transparent p-0 sm:h-[250px]"
             />
           ) : (
-            <div className="h-64 flex items-center justify-center text-slate-400">
+            <div className="h-48 sm:h-64 flex items-center justify-center text-slate-400 text-sm">
               No company data available
             </div>
           )}
@@ -464,7 +471,7 @@ const SuperadminDashboard: React.FC = () => {
       </div>
 
       {/* System Status */}
-      <div className="mt-8">
+      <div className="mt-6 sm:mt-8">
         <SystemStatus />
       </div>
     </DashboardLayout>

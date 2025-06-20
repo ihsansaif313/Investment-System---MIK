@@ -89,7 +89,10 @@ const CompanyManagement: React.FC = () => {
         return;
       }
 
+      console.log('[CompanyManagement] Updating company with data:', formData);
       const response = await apiService.updateSubCompany(editingCompany.id, formData);
+      console.log('[CompanyManagement] Update response:', response);
+
       successToast('Company updated successfully');
 
       // Trigger real-time update
@@ -98,7 +101,11 @@ const CompanyManagement: React.FC = () => {
       setShowEditModal(false);
       setEditingCompany(null);
       resetForm();
-      fetchCompanies();
+
+      // Force refresh with delay to ensure backend processing
+      setTimeout(() => {
+        fetchCompanies();
+      }, 1000);
     } catch (error: any) {
       console.error('Failed to update company:', error);
       errorToast(error.response?.data?.message || 'Failed to update company');
@@ -174,39 +181,41 @@ const CompanyManagement: React.FC = () => {
 
   return (
     <DashboardLayout title="Company Management" subtitle="Create and manage companies">
-      <div className="mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div className="flex items-center gap-4">
-          <div className="relative">
+      <div className="mb-4 sm:mb-6 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 sm:gap-4">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-4">
+          <div className="relative flex-1 sm:flex-none">
             <input
               type="text"
               placeholder="Search companies..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full md:w-64 bg-slate-700 border border-slate-600 rounded-md py-2 pl-10 pr-4 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-yellow-500"
+              className="w-full sm:w-48 lg:w-64 bg-slate-700 border border-slate-600 rounded-md py-2 pl-9 sm:pl-10 pr-3 sm:pr-4 text-sm sm:text-base text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-yellow-500 transition-colors"
             />
-            <SearchIcon className="absolute left-3 top-2.5 h-5 w-5 text-slate-400" />
+            <SearchIcon className="absolute left-2.5 sm:left-3 top-2.5 h-4 w-4 sm:h-5 sm:w-5 text-slate-400" />
           </div>
           <div className="relative">
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="appearance-none bg-slate-700 border border-slate-600 rounded-md py-2 pl-4 pr-10 text-white focus:outline-none focus:ring-2 focus:ring-yellow-500"
+              className="appearance-none w-full sm:w-auto bg-slate-700 border border-slate-600 rounded-md py-2 pl-3 sm:pl-4 pr-8 sm:pr-10 text-sm sm:text-base text-white focus:outline-none focus:ring-2 focus:ring-yellow-500 transition-colors"
             >
               <option value="all">All Status</option>
               <option value="active">Active</option>
               <option value="inactive">Inactive</option>
               <option value="pending">Pending</option>
             </select>
-            <FilterIcon className="absolute right-3 top-2.5 h-5 w-5 text-slate-400 pointer-events-none" />
+            <FilterIcon className="absolute right-2.5 sm:right-3 top-2.5 h-4 w-4 sm:h-5 sm:w-5 text-slate-400 pointer-events-none" />
           </div>
         </div>
         <Button
           variant="primary"
+          size="sm"
           onClick={() => setShowCreateModal(true)}
-          className="flex items-center justify-center"
+          className="flex items-center justify-center w-full lg:w-auto"
         >
-          <PlusIcon className="h-5 w-5 mr-2" />
-          New Company
+          <PlusIcon className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
+          <span className="hidden sm:inline">New Company</span>
+          <span className="sm:hidden">New</span>
         </Button>
       </div>
 
@@ -273,8 +282,8 @@ const CompanyManagement: React.FC = () => {
                       {company.established_date ? new Date(company.established_date).toLocaleDateString() : 'N/A'}
                     </td>
                     <td className="p-4">
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(company.status)}`}>
-                        {company.status.charAt(0).toUpperCase() + company.status.slice(1)}
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(company.status || 'active')}`}>
+                        {company.status ? (company.status.charAt(0).toUpperCase() + company.status.slice(1)) : 'Active'}
                       </span>
                     </td>
                     <td className="p-4">
@@ -336,7 +345,7 @@ const CompanyManagement: React.FC = () => {
             <h3 className="text-lg font-medium text-white">Active Companies</h3>
           </div>
           <p className="text-3xl font-bold text-green-500">
-            {companies.filter(c => c.status === 'active').length}
+            {companies.filter(c => (c.status || 'active') === 'active').length}
           </p>
           <p className="text-sm text-slate-400">Currently operational</p>
         </div>

@@ -23,9 +23,11 @@ const PendingAssignment: React.FC = () => {
     if (!user) return;
 
     try {
-      const response = await apiService.get(`/admin-management/status/${user.id}`);
-      setAdminStatus(response.data.status);
-      setRejectionReason(response.data.notes);
+      // Get fresh admin status data
+      const statusData = await apiService.getAdminStatus(user.id);
+      console.log('[PendingAssignment] Admin status check result:', statusData);
+      setAdminStatus(statusData.status as 'pending' | 'rejected');
+      setRejectionReason(statusData.notes || null);
     } catch (error) {
       console.error('Failed to check admin status:', error);
     }
@@ -36,13 +38,13 @@ const PendingAssignment: React.FC = () => {
     checkAdminStatus();
   }, [user]);
 
-  // Auto-refresh every 30 seconds
+  // Auto-refresh every 10 seconds for faster status updates
   useEffect(() => {
     const interval = setInterval(() => {
       fetchAssignedCompanies();
       checkAdminStatus();
       setLastChecked(new Date());
-    }, 30000);
+    }, 10000);
 
     return () => clearInterval(interval);
   }, [fetchAssignedCompanies]);

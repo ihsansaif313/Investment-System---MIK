@@ -181,19 +181,27 @@ const AdminAssignments: React.FC = () => {
   };
 
   const handleRemoveAssignment = async (assignmentId: string, adminName?: string, companyName?: string) => {
+    console.log('[AdminAssignments] Attempting to remove assignment:', { assignmentId, adminName, companyName });
+
     const message = adminName && companyName
       ? `Are you sure you want to remove ${adminName} from ${companyName}?`
       : 'Are you sure you want to remove this assignment?';
     if (!confirm(message)) return;
 
     try {
+      console.log('[AdminAssignments] Calling removeCompanyAssignment API with ID:', assignmentId);
       await apiService.removeCompanyAssignment(assignmentId);
+      console.log('[AdminAssignments] Assignment removal successful');
+
       successToast('Assignment removed successfully');
 
       // Trigger real-time update
       companyUpdates.assignmentRemoved({ assignmentId });
 
-      fetchData();
+      // Force refresh with delay
+      setTimeout(() => {
+        fetchData();
+      }, 1000);
     } catch (error: any) {
       console.error('Failed to remove assignment:', error);
       errorToast(error.response?.data?.message || 'Failed to remove assignment');
@@ -419,49 +427,49 @@ const AdminAssignments: React.FC = () => {
   return (
     <DashboardLayout title="Admin Management" subtitle="Manage admin approvals and company assignments">
       {/* Admin Statistics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
-        <div className="bg-slate-800 rounded-lg p-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4 mb-4 sm:mb-6">
+        <div className="bg-slate-800 rounded-lg p-3 sm:p-4">
           <div className="flex items-center">
-            <UsersIcon className="h-8 w-8 text-blue-500" />
-            <div className="ml-3">
-              <p className="text-sm font-medium text-slate-400">Total Admins</p>
-              <p className="text-2xl font-bold text-white">{adminStats.totalAdmins}</p>
+            <UsersIcon className="h-6 w-6 sm:h-8 sm:w-8 text-blue-500 flex-shrink-0" />
+            <div className="ml-2 sm:ml-3 min-w-0">
+              <p className="text-xs sm:text-sm font-medium text-slate-400 truncate">Total Admins</p>
+              <p className="text-lg sm:text-2xl font-bold text-white">{adminStats.totalAdmins}</p>
             </div>
           </div>
         </div>
-        <div className="bg-slate-800 rounded-lg p-4">
+        <div className="bg-slate-800 rounded-lg p-3 sm:p-4">
           <div className="flex items-center">
-            <CheckIcon className="h-8 w-8 text-green-500" />
-            <div className="ml-3">
-              <p className="text-sm font-medium text-slate-400">Active</p>
-              <p className="text-2xl font-bold text-white">{adminStats.activeAdmins}</p>
+            <CheckIcon className="h-6 w-6 sm:h-8 sm:w-8 text-green-500 flex-shrink-0" />
+            <div className="ml-2 sm:ml-3 min-w-0">
+              <p className="text-xs sm:text-sm font-medium text-slate-400 truncate">Active</p>
+              <p className="text-lg sm:text-2xl font-bold text-white">{adminStats.activeAdmins}</p>
             </div>
           </div>
         </div>
-        <div className="bg-slate-800 rounded-lg p-4">
+        <div className="bg-slate-800 rounded-lg p-3 sm:p-4">
           <div className="flex items-center">
-            <ClockIcon className="h-8 w-8 text-yellow-500" />
-            <div className="ml-3">
-              <p className="text-sm font-medium text-slate-400">Pending</p>
-              <p className="text-2xl font-bold text-white">{adminStats.pendingAdmins}</p>
+            <ClockIcon className="h-6 w-6 sm:h-8 sm:w-8 text-yellow-500 flex-shrink-0" />
+            <div className="ml-2 sm:ml-3 min-w-0">
+              <p className="text-xs sm:text-sm font-medium text-slate-400 truncate">Pending</p>
+              <p className="text-lg sm:text-2xl font-bold text-white">{adminStats.pendingAdmins}</p>
             </div>
           </div>
         </div>
-        <div className="bg-slate-800 rounded-lg p-4">
+        <div className="bg-slate-800 rounded-lg p-3 sm:p-4">
           <div className="flex items-center">
-            <BuildingIcon className="h-8 w-8 text-purple-500" />
-            <div className="ml-3">
-              <p className="text-sm font-medium text-slate-400">Assigned</p>
-              <p className="text-2xl font-bold text-white">{adminStats.assignedAdmins}</p>
+            <BuildingIcon className="h-6 w-6 sm:h-8 sm:w-8 text-purple-500 flex-shrink-0" />
+            <div className="ml-2 sm:ml-3 min-w-0">
+              <p className="text-xs sm:text-sm font-medium text-slate-400 truncate">Assigned</p>
+              <p className="text-lg sm:text-2xl font-bold text-white">{adminStats.assignedAdmins}</p>
             </div>
           </div>
         </div>
-        <div className="bg-slate-800 rounded-lg p-4">
+        <div className="bg-slate-800 rounded-lg p-3 sm:p-4 col-span-2 sm:col-span-1">
           <div className="flex items-center">
-            <AlertCircleIcon className="h-8 w-8 text-orange-500" />
-            <div className="ml-3">
-              <p className="text-sm font-medium text-slate-400">Unassigned</p>
-              <p className="text-2xl font-bold text-white">{adminStats.unassignedAdmins}</p>
+            <AlertCircleIcon className="h-6 w-6 sm:h-8 sm:w-8 text-orange-500 flex-shrink-0" />
+            <div className="ml-2 sm:ml-3 min-w-0">
+              <p className="text-xs sm:text-sm font-medium text-slate-400 truncate">Unassigned</p>
+              <p className="text-lg sm:text-2xl font-bold text-white">{adminStats.unassignedAdmins}</p>
             </div>
           </div>
         </div>
@@ -711,7 +719,7 @@ const AdminAssignments: React.FC = () => {
                         <Button
                           variant="danger"
                           size="sm"
-                          onClick={() => handleRemoveAssignment(assignment.id, `${assignment.userId?.firstName} ${assignment.userId?.lastName}`, assignment.subCompanyId?.name || '')}
+                          onClick={() => handleRemoveAssignment(assignment._id || assignment.id, `${assignment.userId?.firstName} ${assignment.userId?.lastName}`, assignment.subCompanyId?.name || '')}
                           title="Remove Assignment"
                         >
                           <TrashIcon className="h-4 w-4" />

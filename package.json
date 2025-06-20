@@ -5,12 +5,22 @@
   "type": "module",
   "scripts": {
     "dev": "npx vite",
-    "start": "npm run dev",
+    "start": "npm run start:prod",
+    "start:dev": "npm run dev",
+    "start:prod": "npm run build && npm run preview",
     "build": "npx vite build",
+    "build:prod": "NODE_ENV=production npx vite build",
     "lint": "eslint . --ext .js,.jsx,.ts,.tsx",
-    "preview": "npx vite preview",
+    "preview": "npx vite preview --host 0.0.0.0 --port 5173",
     "backend": "npm --prefix backend start",
-    "backend:dev": "npm --prefix backend run dev"
+    "backend:dev": "npm --prefix backend run dev",
+    "backend:prod": "npm --prefix backend run start:prod",
+    "start:full": "npm-run-all --parallel backend:prod start:prod",
+    "start:full:dev": "npm-run-all --parallel backend:dev dev",
+    "test:production": "node backend/test-production-fixes.js",
+    "optimize:db": "node backend/optimize-database-production.js",
+    "clean": "rm -rf dist node_modules/.vite",
+    "clean:all": "npm run clean && rm -rf node_modules backend/node_modules"
   },
   "dependencies": {
     "@types/mongoose": "^5.11.96",

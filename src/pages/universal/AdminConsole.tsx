@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { SettingsIcon, DatabaseIcon, UsersIcon, ServerIcon, ShieldIcon, BarChart3Icon, RefreshCwIcon, AlertTriangleIcon, CheckCircleIcon, XCircleIcon } from 'lucide-react';
 import DashboardLayout from '../../layouts/DashboardLayout';
 import Button from '../../components/ui/Button';
@@ -6,32 +6,40 @@ const AdminConsole: React.FC = () => {
   const [activeTab, setActiveTab] = useState('system');
   const [isBackupRunning, setIsBackupRunning] = useState(false);
   const [isMaintenanceMode, setIsMaintenanceMode] = useState(false);
-  const [logs, setLogs] = useState([{
-    id: 1,
-    type: 'info',
-    message: 'System startup complete',
-    timestamp: '2023-05-22 08:00:12'
-  }, {
-    id: 2,
-    type: 'info',
-    message: 'Daily backup completed successfully',
-    timestamp: '2023-05-22 03:15:00'
-  }, {
-    id: 3,
-    type: 'warning',
-    message: 'High CPU usage detected',
-    timestamp: '2023-05-21 14:22:45'
-  }, {
-    id: 4,
-    type: 'error',
-    message: 'Failed login attempt from 192.168.1.54',
-    timestamp: '2023-05-21 11:47:32'
-  }, {
-    id: 5,
-    type: 'info',
-    message: 'New user registered: investor@example.com',
-    timestamp: '2023-05-20 16:30:18'
-  }]);
+  const [logs, setLogs] = useState<any[]>([]);
+  const [loadingLogs, setLoadingLogs] = useState(false);
+  const [logError, setLogError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (activeTab === 'logs') {
+      setLoadingLogs(true);
+      setLogError(null);
+      fetch('/api/activity-logs?limit=10', {
+        credentials: 'include',
+      })
+        .then(async (res) => {
+          if (!res.ok) throw new Error('Failed to fetch logs');
+          const data = await res.json();
+          if (data.success && Array.isArray(data.data)) {
+            setLogs(
+              data.data.map((log: any) => ({
+                id: log.id,
+                type: log.action?.includes('error') ? 'error' : log.action?.includes('warning') ? 'warning' : 'info',
+                message: log.description || log.action,
+                timestamp: new Date(log.timestamp).toLocaleString(),
+              }))
+            );
+          } else {
+            setLogs([]);
+          }
+        })
+        .catch((err) => {
+          setLogError(err.message);
+          setLogs([]);
+        })
+        .finally(() => setLoadingLogs(false));
+    }
+  }, [activeTab]);
   const handleRunBackup = () => {
     setIsBackupRunning(true);
     // Simulate backup process
@@ -558,65 +566,60 @@ const AdminConsole: React.FC = () => {
               <h2 className="text-xl font-semibold text-white mb-6">
                 System Logs
               </h2>
-              <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <div className="flex items-center">
-                  <input type="text" placeholder="Search logs..." className="w-full sm:w-64 bg-slate-700 border border-slate-600 rounded-md py-2 px-4 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-yellow-500" />
-                </div>
-                <div className="flex space-x-2">
-                  <select className="bg-slate-700 border border-slate-600 rounded-md py-2 px-4 text-white focus:outline-none focus:ring-2 focus:ring-yellow-500">
-                    <option value="all">All Types</option>
-                    <option value="info">Info</option>
-                    <option value="warning">Warning</option>
-                    <option value="error">Error</option>
-                  </select>
-                  <Button variant="secondary" size="sm" className="flex items-center">
-                    <RefreshCwIcon className="h-4 w-4 mr-2" />
-                    Refresh
-                  </Button>
-                </div>
-              </div>
-              <div className="bg-slate-700 rounded-lg overflow-hidden">
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="text-left text-sm text-slate-400 border-b border-slate-600">
-                        <th className="p-4 font-medium">Type</th>
-                        <th className="p-4 font-medium">Message</th>
-                        <th className="p-4 font-medium">Timestamp</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {logs.map(log => <tr key={log.id} className="border-b border-slate-600">
-                          <td className="p-4">
-                            <div className="flex items-center">
-                              {getLogIcon(log.type)}
-                              <span className={`ml-2 ${log.type === 'info' ? 'text-blue-500' : log.type === 'warning' ? 'text-yellow-500' : 'text-red-500'}`}>
-                                {log.type.charAt(0).toUpperCase() + log.type.slice(1)}
-                              </span>
-                            </div>
-                          </td>
-                          <td className="p-4 text-white">{log.message}</td>
-                          <td className="p-4 text-slate-400">
-                            {log.timestamp}
-                          </td>
-                        </tr>)}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-              <div className="mt-6 flex justify-between items-center">
-                <div className="text-sm text-slate-400">
-                  Showing 5 of 234 logs
-                </div>
-                <div className="flex space-x-2">
-                  <Button variant="secondary" size="sm" disabled>
-                    Previous
-                  </Button>
-                  <Button variant="secondary" size="sm">
-                    Next
-                  </Button>
-                </div>
-              </div>
+              {loadingLogs ? (
+                <div className="text-slate-400">Loading logs...</div>
+              ) : logError ? (
+                <div className="text-red-500">{logError}</div>
+              ) : (
+                <>
+                  <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <div className="flex items-center">
+                      <input type="text" placeholder="Search logs..." className="w-full sm:w-64 bg-slate-700 border border-slate-600 rounded-md py-2 px-4 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-yellow-500" />
+                    </div>
+                    <div className="flex space-x-2">
+                      <select className="bg-slate-700 border border-slate-600 rounded-md py-2 px-4 text-white focus:outline-none focus:ring-2 focus:ring-yellow-500">
+                        <option value="all">All Types</option>
+                        <option value="info">Info</option>
+                        <option value="warning">Warning</option>
+                        <option value="error">Error</option>
+                      </select>
+                      <Button variant="secondary" size="sm" className="flex items-center">
+                        <RefreshCwIcon className="h-4 w-4 mr-2" />
+                        Refresh
+                      </Button>
+                    </div>
+                  </div>
+                  <div className="bg-slate-700 rounded-lg overflow-hidden">
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead>
+                          <tr className="text-left text-sm text-slate-400 border-b border-slate-600">
+                            <th className="p-4 font-medium">Type</th>
+                            <th className="p-4 font-medium">Message</th>
+                            <th className="p-4 font-medium">Timestamp</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {logs.map(log => <tr key={log.id} className="border-b border-slate-600">
+                              <td className="p-4">
+                                <div className="flex items-center">
+                                  {getLogIcon(log.type)}
+                                  <span className={`ml-2 ${log.type === 'info' ? 'text-blue-500' : log.type === 'warning' ? 'text-yellow-500' : 'text-red-500'}`}>
+                                    {log.type.charAt(0).toUpperCase() + log.type.slice(1)}
+                                  </span>
+                                </div>
+                              </td>
+                              <td className="p-4 text-white">{log.message}</td>
+                              <td className="p-4 text-slate-400">
+                                {log.timestamp}
+                              </td>
+                            </tr>)}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </>
+              )}
             </div>}
         </div>
       </div>

@@ -57,11 +57,11 @@ const Modal: React.FC<ModalProps> = ({
   if (!isOpen) return null;
 
   const sizeClasses = {
-    sm: 'max-w-md',
-    md: 'max-w-lg',
-    lg: 'max-w-2xl',
-    xl: 'max-w-4xl',
-    full: 'max-w-full mx-4',
+    sm: 'max-w-sm sm:max-w-md',
+    md: 'max-w-md sm:max-w-lg',
+    lg: 'max-w-lg sm:max-w-xl lg:max-w-2xl',
+    xl: 'max-w-xl sm:max-w-2xl lg:max-w-4xl',
+    full: 'max-w-full',
   };
 
   const handleOverlayClick = (e: React.MouseEvent) => {
@@ -79,43 +79,44 @@ const Modal: React.FC<ModalProps> = ({
       />
 
       {/* Modal */}
-      <div className="flex min-h-full items-center justify-center p-4">
+      <div className="flex min-h-full items-center justify-center p-3 sm:p-4 lg:p-6">
         <div
           className={`
-            relative w-full ${sizeClasses[size]} 
-            bg-slate-800 rounded-lg shadow-xl 
+            relative w-full ${sizeClasses[size]}
+            bg-slate-800 rounded-lg sm:rounded-xl shadow-xl
             transform transition-all duration-200
+            max-h-[90vh] flex flex-col
             ${className}
           `}
         >
           {/* Header */}
           {(title || showCloseButton) && (
-            <div className="flex items-center justify-between p-6 border-b border-slate-700">
+            <div className="flex items-center justify-between p-4 sm:p-6 border-b border-slate-700 flex-shrink-0">
               {title && (
-                <h3 className="text-lg font-semibold text-white">
+                <h3 className="text-base sm:text-lg font-semibold text-white pr-4 truncate">
                   {title}
                 </h3>
               )}
-              
+
               {showCloseButton && (
                 <button
                   onClick={onClose}
-                  className="text-slate-400 hover:text-white transition-colors p-1 rounded-md hover:bg-slate-700"
+                  className="text-slate-400 hover:text-white transition-colors p-1 rounded-md hover:bg-slate-700 flex-shrink-0"
                 >
-                  <X size={20} />
+                  <X size={18} className="sm:w-5 sm:h-5" />
                 </button>
               )}
             </div>
           )}
 
           {/* Content */}
-          <div className="p-6">
+          <div className="p-4 sm:p-6 overflow-y-auto flex-1">
             {children}
           </div>
 
           {/* Footer */}
           {footer && (
-            <div className="flex items-center justify-end gap-3 p-6 border-t border-slate-700">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-2 sm:gap-3 p-4 sm:p-6 border-t border-slate-700 flex-shrink-0">
               {footer}
             </div>
           )}

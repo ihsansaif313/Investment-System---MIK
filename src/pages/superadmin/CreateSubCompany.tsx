@@ -4,14 +4,18 @@ import { ArrowLeftIcon, BuildingIcon, MapPinIcon, UsersIcon, GlobeIcon, Calendar
 import DashboardLayout from '../../layouts/DashboardLayout';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
-import { useCompany } from '../../contexts/CompanyContext';
+// Changed import from useCompany to useData
+import { useData } from '../../contexts/DataContext';
 import { INDUSTRY_OPTIONS } from '../../constants/formOptions';
+
 const CreateSubCompany: React.FC = () => {
   const navigate = useNavigate();
+  // Changed to useData hook
   const {
-    addCompany,
-    loading
-  } = useCompany();
+    createSubCompany,
+    state: { loading }
+  } = useData();
+
   const [formData, setFormData] = useState({
     name: '',
     industry: '',
@@ -20,6 +24,9 @@ const CreateSubCompany: React.FC = () => {
     location: '',
     employees: '',
     website: '',
+    adminEmail: '',
+    adminFirstName: '',
+    adminLastName: '',
     logo: 'https://images.unsplash.com/photo-1560179707-f14e90ef3623?q=80&w=100&h=100&auto=format&fit=crop'
   });
   const [errors, setErrors] = useState<{
@@ -92,10 +99,32 @@ const CreateSubCompany: React.FC = () => {
         },
         contacts: []
       };
-      await addCompany(newCompany);
+      // Prepare data matching CreateSubCompanyForm type
+      const subCompanyData = {
+        name: newCompany.name,
+        industry: newCompany.industry,
+        description: newCompany.description,
+        address: newCompany.location,
+        established_date: new Date(Number(formData.founded), 0, 1),
+        contact_email: newCompany.adminEmail,
+        phone: '', // no phone field in form, set empty string
+        adminEmail: newCompany.adminEmail,
+        adminFirstName: newCompany.adminFirstName,
+        adminLastName: newCompany.adminLastName,
+        adminPhone: '', // no adminPhone field in form, set empty string
+      };
+      await createSubCompany(subCompanyData);
       navigate('/superadmin/companies');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating company:', error);
+      if (error.response?.status === 429) {
+        alert('Too many requests. Please wait and try again later.');
+      } else if (error.response?.status === 401) {
+        alert('Unauthorized. Please login again.');
+        window.location.href = '/login';
+      } else {
+        alert('Failed to create company. Please try again.');
+      }
     }
   };
   const handleBack = () => {
@@ -173,7 +202,7 @@ const CreateSubCompany: React.FC = () => {
             <Button type="button" variant="secondary" onClick={handleBack}>
               Cancel
             </Button>
-            <Button type="submit" variant="primary" isLoading={loading}>
+            <Button type="submit" variant="primary" isLoading={loading.companies}>
               Create Company
             </Button>
           </div>

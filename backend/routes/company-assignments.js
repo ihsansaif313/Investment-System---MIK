@@ -23,6 +23,13 @@ const validateAssignment = [
 // Get all assignments
 router.get('/', authenticate, authorize('superadmin'), async (req, res) => {
   try {
+    // Disable caching for real-time data
+    res.set({
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0'
+    });
+
     const { page = 1, limit = 10, userId, subCompanyId, status } = req.query;
     const skip = (page - 1) * limit;
 
@@ -161,12 +168,25 @@ router.post('/', authenticate, authorize('superadmin'), validateAssignment, asyn
       });
     }
 
-    const userRole = await Role.findOne({ userId, status: 'active' });
-    if (!userRole || userRole.type !== 'admin') {
+    // Find user's admin role (can be pending or active)
+    const userRole = await Role.findOne({ userId, type: 'admin' });
+    console.log(`[DEBUG] Found user role for ${userId}:`, userRole ? { status: userRole.status, type: userRole.type } : 'NOT FOUND');
+
+    if (!userRole) {
       return res.status(400).json({
         success: false,
         message: 'User must be an admin to be assigned to a company'
       });
+    }
+
+    // Auto-activate pending admin role when assigned to a company
+    if (userRole.status === 'pending') {
+      console.log(`[DEBUG] Auto-activating admin role for user ${userId} - changing from ${userRole.status} to active`);
+      userRole.status = 'active';
+      await userRole.save();
+      console.log(`[SUCCESS] Auto-activated admin role for user ${userId} upon company assignment`);
+    } else {
+      console.log(`[DEBUG] Admin role for user ${userId} already has status: ${userRole.status}`);
     }
 
     // Verify company exists
@@ -301,14 +321,21 @@ router.put('/:id', authenticate, authorize('superadmin'), param('id').isMongoId(
 // Remove assignment (set status to inactive)
 router.delete('/:id', authenticate, authorize('superadmin'), param('id').isMongoId(), async (req, res) => {
   try {
+    console.log(`[DEBUG] Delete assignment request for ID: ${req.params.id}`);
+
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
+      console.log(`[DEBUG] Validation errors:`, errors.array());
       return res.status(400).json({
         success: false,
         message: 'Validation failed',
         errors: errors.array()
       });
     }
+
+    // First check if assignment exists
+    const existingAssignment = await CompanyAssignment.findById(req.params.id);
+    console.log(`[DEBUG] Found assignment:`, existingAssignment ? { id: existingAssignment._id, status: existingAssignment.status } : 'NOT FOUND');
 
     const assignment = await CompanyAssignment.findByIdAndUpdate(
       req.params.id,
@@ -317,12 +344,14 @@ router.delete('/:id', authenticate, authorize('superadmin'), param('id').isMongo
     );
 
     if (!assignment) {
+      console.log(`[DEBUG] Assignment not found for deletion: ${req.params.id}`);
       return res.status(404).json({
         success: false,
         message: 'Assignment not found'
       });
     }
 
+    console.log(`[DEBUG] Assignment successfully marked as inactive:`, assignment._id);
     res.json({
       success: true,
       message: 'Assignment removed successfully'

@@ -65,78 +65,36 @@ router.use('/assets', authenticate, assetRoutes);
 router.use('/analytics', authenticate, analyticsRoutes);
 router.use('/activity-logs', authenticate, activityLogsRoutes);
 
-// API documentation endpoint
-router.get('/docs', (req, res) => {
-  res.json({
-    success: true,
-    message: 'API Documentation',
-    endpoints: {
-      authentication: {
-        'POST /api/auth/login': 'User login',
-        'POST /api/auth/register': 'User registration',
-        'POST /api/auth/refresh': 'Refresh access token',
-        'POST /api/auth/logout': 'User logout',
-        'POST /api/auth/forgot-password': 'Request password reset',
-        'POST /api/auth/reset-password': 'Reset password'
-      },
-      users: {
-        'GET /api/users': 'Get all users',
-        'POST /api/users': 'Create new user',
-        'GET /api/users/:id': 'Get user by ID',
-        'PUT /api/users/:id': 'Update user',
-        'DELETE /api/users/:id': 'Delete user',
-        'GET /api/users/profile': 'Get current user profile',
-        'PUT /api/users/profile': 'Update current user profile',
-        'POST /api/users/change-password': 'Change password'
-      },
-      investments: {
-        'GET /api/investments': 'Get all investments',
-        'POST /api/investments': 'Create new investment',
-        'GET /api/investments/:id': 'Get investment by ID',
-        'PUT /api/investments/:id': 'Update investment',
-        'DELETE /api/investments/:id': 'Delete investment',
-        'POST /api/investments/:id/invest': 'Invest in investment',
-        'GET /api/investments/:id/performance': 'Get investment performance',
-        'GET /api/investments/analytics': 'Get investment analytics'
-      },
-      companies: {
-        'GET /api/companies': 'Get all companies',
-        'POST /api/companies': 'Create new company',
-        'GET /api/companies/:id': 'Get company by ID',
-        'PUT /api/companies/:id': 'Update company',
-        'DELETE /api/companies/:id': 'Delete company'
-      },
-      companyAssignments: {
-        'GET /api/company-assignments': 'Get all company assignments',
-        'POST /api/company-assignments': 'Create new assignment',
-        'PUT /api/company-assignments/:id': 'Update assignment',
-        'DELETE /api/company-assignments/:id': 'Remove assignment',
-        'GET /api/company-assignments/user/:userId': 'Get user assignments',
-        'GET /api/company-assignments/company/:companyId': 'Get company assignments',
-        'GET /api/company-assignments/available-admins': 'Get available admins',
-        'GET /api/company-assignments/all-admins': 'Get all admin users'
-      },
-      adminManagement: {
-        'GET /api/admin-management/pending': 'Get pending admin approvals',
-        'GET /api/admin-management/approved': 'Get approved admin users',
-        'POST /api/admin-management/approve/:userId': 'Approve admin user',
-        'POST /api/admin-management/reject/:userId': 'Reject admin user',
-        'GET /api/admin-management/status/:userId': 'Get admin approval status'
-      },
-      assets: {
-        'GET /api/assets': 'Get all assets',
-        'POST /api/assets': 'Create new asset',
-        'GET /api/assets/:id': 'Get asset by ID',
-        'PUT /api/assets/:id': 'Update asset',
-        'DELETE /api/assets/:id': 'Delete asset'
-      },
-      analytics: {
-        'GET /api/analytics/superadmin': 'Get superadmin analytics',
-        'GET /api/analytics/admin/:subCompanyId': 'Get admin analytics',
-        'GET /api/analytics/investor/:userId': 'Get investor analytics'
+// API documentation endpoint - Only available in development
+if (process.env.NODE_ENV !== 'production') {
+  router.get('/docs', (req, res) => {
+    res.json({
+      success: true,
+      message: 'API Documentation - Development Only',
+      note: 'This endpoint is disabled in production for security',
+      endpoints: {
+        authentication: {
+          'POST /api/auth/login': 'User login',
+          'POST /api/auth/register': 'User registration',
+          'POST /api/auth/refresh': 'Refresh access token',
+          'POST /api/auth/logout': 'User logout'
+        },
+        core: {
+          'GET /api/health': 'Health check',
+          'GET /api/status': 'API status'
+        }
       }
-    }
+    });
   });
-});
+} else {
+  // Production: Return 404 for docs endpoint
+  router.get('/docs', (req, res) => {
+    res.status(404).json({
+      success: false,
+      message: 'API documentation not available in production',
+      note: 'Please refer to external documentation'
+    });
+  });
+}
 
 export default router;

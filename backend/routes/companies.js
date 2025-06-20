@@ -3,6 +3,8 @@ import { OwnerCompany, SubCompany, CompanyAssignment, User, Role } from '../mode
 import { authenticate, authorize } from '../middleware/auth.js';
 import { body, param, query, validationResult } from 'express-validator';
 import ActivityLogService from '../services/ActivityLogService.js';
+import logger from '../utils/logger.js';
+import { cacheMiddleware, optimizeQueries } from '../middleware/performance.js';
 
 const router = express.Router();
 
@@ -21,6 +23,32 @@ const validateCompanyCreation = [
   body('website').optional().isURL().withMessage('Website must be a valid URL')
 ];
 
+const validateCompanyUpdate = [
+  body('name').optional().trim().isLength({ min: 1, max: 100 }).withMessage('Company name must be less than 100 characters'),
+  body('industry').optional().trim().isLength({ min: 1, max: 50 }).withMessage('Industry must be between 1 and 50 characters'),
+  body('description').optional().trim().isLength({ max: 1000 }).withMessage('Description must be less than 1000 characters'),
+  body('contactEmail').optional().isEmail().withMessage('Valid contact email is required'),
+  body('establishedDate').optional().custom((value) => {
+    if (value && !Date.parse(value)) {
+      throw new Error('Valid established date is required');
+    }
+    return true;
+  }),
+  body('address').optional().trim().isLength({ max: 200 }).withMessage('Address must be less than 200 characters'),
+  body('contactPhone').optional().trim().isLength({ max: 20 }).withMessage('Phone must be less than 20 characters'),
+  body('website').optional().custom((value) => {
+    if (value && value.trim() !== '') {
+      try {
+        new URL(value);
+        return true;
+      } catch {
+        throw new Error('Website must be a valid URL');
+      }
+    }
+    return true;
+  })
+];
+
 const validateAssignment = [
   body('userId').isMongoId().withMessage('Valid user ID is required'),
   body('subCompanyId').isMongoId().withMessage('Valid company ID is required'),
@@ -32,15 +60,16 @@ const validateAssignment = [
 // COMPANY CRUD OPERATIONS (Super Admin Only)
 // ============================================================================
 
-// Get all companies
-router.get('/', authenticate, authorize('superadmin'), async (req, res) => {
+// Get all companies - Optimized with caching and performance improvements
+router.get('/', authenticate, authorize('superadmin'), optimizeQueries, cacheMiddleware(2 * 60 * 1000), async (req, res) => {
   try {
     const { page = 1, limit = 10, search, status } = req.query;
-    const skip = (page - 1) * limit;
+    const skip = (page - 1) * Math.min(parseInt(limit), 100); // Limit max results
 
-    // Build query
+    // Build optimized query with indexes
     const query = {};
     if (search) {
+      // Use text search if available, otherwise regex
       query.$or = [
         { name: { $regex: search, $options: 'i' } },
         { industry: { $regex: search, $options: 'i' } }
@@ -50,14 +79,17 @@ router.get('/', authenticate, authorize('superadmin'), async (req, res) => {
       query.status = status;
     }
 
-    const companies = await SubCompany.find(query)
-      .populate('ownerCompanyId', 'name')
-      .populate('adminUserId', 'firstName lastName email')
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(parseInt(limit));
-
-    const total = await SubCompany.countDocuments(query);
+    // Use Promise.all for parallel execution
+    const [companies, total] = await Promise.all([
+      SubCompany.find(query)
+        .populate('ownerCompanyId', 'name')
+        .populate('adminUserId', 'firstName lastName email')
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(parseInt(limit))
+        .lean(), // Return plain objects for better performance
+      SubCompany.countDocuments(query)
+    ]);
 
     res.json({
       success: true,
@@ -70,7 +102,7 @@ router.get('/', authenticate, authorize('superadmin'), async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Get companies error:', error);
+    logger.error('Get companies error', { error: error.message, query: req.query });
     res.status(500).json({
       success: false,
       message: 'Failed to fetch companies',
@@ -170,6 +202,15 @@ router.post('/', authenticate, authorize('superadmin'), validateCompanyCreation,
       await ownerCompany.save();
     }
 
+    // Find a default admin user if none provided
+    let adminUserId = req.body.adminUserId;
+    if (!adminUserId) {
+      const adminRole = await Role.findOne({ type: 'admin' });
+      if (adminRole) {
+        adminUserId = adminRole.userId;
+      }
+    }
+
     const company = new SubCompany({
       ownerCompanyId: ownerCompany._id,
       name,
@@ -182,7 +223,8 @@ router.post('/', authenticate, authorize('superadmin'), validateCompanyCreation,
       website,
       status: 'active',
       registrationNumber: `SUB-${Date.now()}`,
-      taxId: `SUBTAX-${Date.now()}`
+      taxId: `SUBTAX-${Date.now()}`,
+      adminUserId: adminUserId
     });
 
     await company.save();
@@ -207,7 +249,7 @@ router.post('/', authenticate, authorize('superadmin'), validateCompanyCreation,
 });
 
 // Update company
-router.put('/:id', authenticate, authorize('superadmin'), param('id').isMongoId(), validateCompanyCreation, async (req, res) => {
+router.put('/:id', authenticate, authorize('superadmin'), param('id').isMongoId(), validateCompanyUpdate, async (req, res) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
@@ -414,6 +456,139 @@ router.get('/sub/:id', authenticate, authorize('superadmin', 'admin'), param('id
   }
 });
 
+// Delete sub-company (alias for main company endpoint)
+router.delete('/sub/:id', authenticate, authorize('superadmin'), param('id').isMongoId(), async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        errors: errors.array()
+      });
+    }
+
+    const company = await SubCompany.findById(req.params.id);
+    if (!company) {
+      return res.status(404).json({
+        success: false,
+        message: 'Sub-company not found'
+      });
+    }
+
+    // Remove all assignments for this company
+    await CompanyAssignment.deleteMany({ subCompanyId: req.params.id });
+
+    // Delete the company
+    await SubCompany.findByIdAndDelete(req.params.id);
+
+    res.json({
+      success: true,
+      message: 'Sub-company deleted successfully'
+    });
+  } catch (error) {
+    console.error('Delete sub-company error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to delete sub-company',
+      error: error.message
+    });
+  }
+});
+
+// Update sub-company (alias for main company endpoint)
+router.put('/sub/:id', authenticate, authorize('superadmin'), param('id').isMongoId(), validateCompanyUpdate, async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        errors: errors.array()
+      });
+    }
+
+    const { name, industry, description, contactEmail, establishedDate, address, contactPhone, website } = req.body;
+
+    logger.debug('Company update request', {
+      companyId: req.params.id,
+      updateData: { name, industry, description, contactEmail, establishedDate, address, contactPhone, website }
+    });
+
+    // Check if company exists
+    const company = await SubCompany.findById(req.params.id);
+    if (!company) {
+      return res.status(404).json({
+        success: false,
+        message: 'Sub-company not found'
+      });
+    }
+
+    // Check if new name conflicts with other companies (excluding current one)
+    if (name && name !== company.name) {
+      const existingCompany = await SubCompany.findOne({
+        name: { $regex: new RegExp(`^${name}$`, 'i') },
+        _id: { $ne: req.params.id }
+      });
+      if (existingCompany) {
+        return res.status(400).json({
+          success: false,
+          message: 'Sub-company with this name already exists'
+        });
+      }
+    }
+
+    // Update company fields
+    const updateData = {};
+    if (name) updateData.name = name;
+    if (industry) updateData.industry = industry;
+    if (description !== undefined) updateData.description = description;
+    if (contactEmail) updateData.contactEmail = contactEmail;
+    if (establishedDate) updateData.establishedDate = new Date(establishedDate);
+    if (address !== undefined) updateData.address = address;
+    if (contactPhone !== undefined) updateData.contactPhone = contactPhone;
+    if (website !== undefined) updateData.website = website;
+
+    logger.debug('Applying company update', { companyId: req.params.id, updateData });
+
+    const updatedCompany = await SubCompany.findByIdAndUpdate(
+      req.params.id,
+      updateData,
+      { new: true, runValidators: true }
+    ).populate('ownerCompanyId', 'name')
+     .populate('adminUserId', 'firstName lastName email');
+
+    // Log company update activity
+    try {
+      await ActivityLogService.logCompanyUpdate(
+        req.user.id,
+        company._id.toString(),
+        company.name,
+        updateData,
+        {
+          ip: req.ip,
+          userAgent: req.get('User-Agent')
+        }
+      );
+    } catch (logError) {
+      console.error('Failed to log company update activity:', logError);
+    }
+
+    res.json({
+      success: true,
+      message: 'Sub-company updated successfully',
+      data: updatedCompany
+    });
+  } catch (error) {
+    console.error('Update sub-company error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update sub-company',
+      error: error.message
+    });
+  }
+});
+
 // Create new sub-company (alias for main company endpoint)
 router.post('/sub', authenticate, authorize('superadmin'), validateCompanyCreation, async (req, res) => {
   try {
@@ -452,6 +627,15 @@ router.post('/sub', authenticate, authorize('superadmin'), validateCompanyCreati
       await ownerCompany.save();
     }
 
+    // Find a default admin user if none provided
+    let adminUserId = req.body.adminUserId;
+    if (!adminUserId) {
+      const adminRole = await Role.findOne({ type: 'admin' });
+      if (adminRole) {
+        adminUserId = adminRole.userId;
+      }
+    }
+
     const company = new SubCompany({
       ownerCompanyId: ownerCompany._id,
       name,
@@ -464,7 +648,8 @@ router.post('/sub', authenticate, authorize('superadmin'), validateCompanyCreati
       website,
       status: 'active',
       registrationNumber: `SUB-${Date.now()}`,
-      taxId: `SUBTAX-${Date.now()}`
+      taxId: `SUBTAX-${Date.now()}`,
+      adminUserId: adminUserId
     });
 
     await company.save();

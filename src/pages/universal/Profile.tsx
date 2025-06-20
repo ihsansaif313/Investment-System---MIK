@@ -104,57 +104,119 @@ const Profile: React.FC = () => {
       <div className="bg-slate-800 rounded-lg overflow-hidden shadow-lg">
         {/* Tabs navigation */}
         <div className="border-b border-slate-700">
-          <div className="flex overflow-x-auto">
-            <button className={`px-6 py-4 text-sm font-medium ${activeTab === 'general' ? 'text-yellow-500 border-b-2 border-yellow-500' : 'text-slate-400 hover:text-white'}`} onClick={() => setActiveTab('general')}>
-              <UserIcon className="h-4 w-4 inline mr-2" />
-              General
+          <div className="flex overflow-x-auto scrollbar-hide">
+            <button
+              className={`
+                flex-shrink-0 px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm font-medium transition-colors
+                ${activeTab === 'general' ? 'text-yellow-500 border-b-2 border-yellow-500' : 'text-slate-400 hover:text-white'}
+              `}
+              onClick={() => setActiveTab('general')}
+            >
+              <UserIcon className="h-3 w-3 sm:h-4 sm:w-4 inline mr-1 sm:mr-2" />
+              <span className="hidden sm:inline">General</span>
+              <span className="sm:hidden">Info</span>
             </button>
-            <button className={`px-6 py-4 text-sm font-medium ${activeTab === 'security' ? 'text-yellow-500 border-b-2 border-yellow-500' : 'text-slate-400 hover:text-white'}`} onClick={() => setActiveTab('security')}>
-              <ShieldIcon className="h-4 w-4 inline mr-2" />
+            <button
+              className={`
+                flex-shrink-0 px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm font-medium transition-colors
+                ${activeTab === 'security' ? 'text-yellow-500 border-b-2 border-yellow-500' : 'text-slate-400 hover:text-white'}
+              `}
+              onClick={() => setActiveTab('security')}
+            >
+              <ShieldIcon className="h-3 w-3 sm:h-4 sm:w-4 inline mr-1 sm:mr-2" />
               Security
             </button>
-            <button className={`px-6 py-4 text-sm font-medium ${activeTab === 'notifications' ? 'text-yellow-500 border-b-2 border-yellow-500' : 'text-slate-400 hover:text-white'}`} onClick={() => setActiveTab('notifications')}>
-              <BellIcon className="h-4 w-4 inline mr-2" />
-              Notifications
+            <button
+              className={`
+                flex-shrink-0 px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm font-medium transition-colors
+                ${activeTab === 'notifications' ? 'text-yellow-500 border-b-2 border-yellow-500' : 'text-slate-400 hover:text-white'}
+              `}
+              onClick={() => setActiveTab('notifications')}
+            >
+              <BellIcon className="h-3 w-3 sm:h-4 sm:w-4 inline mr-1 sm:mr-2" />
+              <span className="hidden sm:inline">Notifications</span>
+              <span className="sm:hidden">Alerts</span>
             </button>
-            <button className={`px-6 py-4 text-sm font-medium ${activeTab === 'appearance' ? 'text-yellow-500 border-b-2 border-yellow-500' : 'text-slate-400 hover:text-white'}`} onClick={() => setActiveTab('appearance')}>
-              <PaletteIcon className="h-4 w-4 inline mr-2" />
-              Appearance
+            <button
+              className={`
+                flex-shrink-0 px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm font-medium transition-colors
+                ${activeTab === 'appearance' ? 'text-yellow-500 border-b-2 border-yellow-500' : 'text-slate-400 hover:text-white'}
+              `}
+              onClick={() => setActiveTab('appearance')}
+            >
+              <PaletteIcon className="h-3 w-3 sm:h-4 sm:w-4 inline mr-1 sm:mr-2" />
+              <span className="hidden sm:inline">Appearance</span>
+              <span className="sm:hidden">Theme</span>
             </button>
           </div>
         </div>
-        <div className="p-6">
+        <div className="p-3 sm:p-4 lg:p-6">
           {/* General Settings */}
           {activeTab === 'general' && <div>
-              <div className="flex items-center mb-6">
-                <div className="w-20 h-20 rounded-full bg-slate-700 flex items-center justify-center text-2xl font-bold text-white mr-6">
+              <div className="flex flex-col sm:flex-row sm:items-center mb-4 sm:mb-6 gap-4">
+                <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-slate-700 flex items-center justify-center text-xl sm:text-2xl font-bold text-white mx-auto sm:mx-0">
                   {generalForm.fullName.charAt(0)}
                 </div>
-                <div>
-                  <h2 className="text-xl font-semibold text-white">
+                <div className="text-center sm:text-left">
+                  <h2 className="text-lg sm:text-xl font-semibold text-white">
                     {generalForm.fullName}
                   </h2>
-                  <p className="text-slate-400">Account Type: {user?.role && typeof user.role === 'object' && 'type' in user.role ? user.role.type : ''}</p>
-                  <Button variant="secondary" size="sm" className="mt-2">
+                  <p className="text-slate-400 text-sm sm:text-base">Account Type: {user?.role && typeof user.role === 'object' && 'type' in user.role ? user.role.type : ''}</p>
+                  <Button variant="secondary" size="sm" className="mt-2 w-full sm:w-auto">
                     Upload Photo
                   </Button>
                 </div>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <Input label="Full Name" name="fullName" value={generalForm.fullName} onChange={handleGeneralChange} leftIcon={<UserIcon size={18} />} fullWidth />
-                <Input label="Email Address" name="email" type="email" value={generalForm.email} onChange={handleGeneralChange} leftIcon={<MailIcon size={18} />} fullWidth />
-                <Input label="Phone Number" name="phone" value={generalForm.phone} onChange={handleGeneralChange} leftIcon={<PhoneIcon size={18} />} fullWidth />
-                <Input label="Location" name="location" value={generalForm.location} onChange={handleGeneralChange} leftIcon={<MapPinIcon size={18} />} fullWidth />
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-slate-300 mb-1">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+                <Input
+                  label="Full Name"
+                  name="fullName"
+                  value={generalForm.fullName}
+                  onChange={handleGeneralChange}
+                  leftIcon={<UserIcon size={16} className="sm:w-[18px] sm:h-[18px]" />}
+                  fullWidth
+                />
+                <Input
+                  label="Email Address"
+                  name="email"
+                  type="email"
+                  value={generalForm.email}
+                  onChange={handleGeneralChange}
+                  leftIcon={<MailIcon size={16} className="sm:w-[18px] sm:h-[18px]" />}
+                  fullWidth
+                />
+                <Input
+                  label="Phone Number"
+                  name="phone"
+                  value={generalForm.phone}
+                  onChange={handleGeneralChange}
+                  leftIcon={<PhoneIcon size={16} className="sm:w-[18px] sm:h-[18px]" />}
+                  fullWidth
+                />
+                <Input
+                  label="Location"
+                  name="location"
+                  value={generalForm.location}
+                  onChange={handleGeneralChange}
+                  leftIcon={<MapPinIcon size={16} className="sm:w-[18px] sm:h-[18px]" />}
+                  fullWidth
+                />
+                <div className="lg:col-span-2">
+                  <label className="block text-sm font-medium text-slate-300 mb-1.5 sm:mb-2">
                     Bio
                   </label>
-                  <textarea name="bio" value={generalForm.bio} onChange={handleGeneralChange} rows={4} className="w-full bg-slate-700 border border-slate-600 rounded-md py-2 px-4 text-white focus:outline-none focus:ring-2 focus:ring-yellow-500"></textarea>
+                  <textarea
+                    name="bio"
+                    value={generalForm.bio}
+                    onChange={handleGeneralChange}
+                    rows={4}
+                    className="w-full bg-slate-700 border border-slate-600 rounded-md py-2 px-3 sm:px-4 text-sm sm:text-base text-white focus:outline-none focus:ring-2 focus:ring-yellow-500 transition-colors"
+                  />
                 </div>
               </div>
-              <div className="mt-6 flex justify-end">
-                <Button variant="primary" onClick={handleSaveGeneral} className="flex items-center">
-                  <SaveIcon className="h-4 w-4 mr-2" />
+              <div className="mt-4 sm:mt-6 flex justify-end">
+                <Button variant="primary" onClick={handleSaveGeneral} className="flex items-center w-full sm:w-auto">
+                  <SaveIcon className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
                   Save Changes
                 </Button>
               </div>

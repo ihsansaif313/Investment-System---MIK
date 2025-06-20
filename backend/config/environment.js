@@ -231,17 +231,20 @@ export const validateConfig = () => {
 
 /**
  * Print configuration summary (without sensitive data)
+ * Only in development mode
  */
 export const printConfigSummary = () => {
-  console.log('📋 Configuration Summary:');
-  console.log(`   Environment: ${config.NODE_ENV}`);
-  console.log(`   Port: ${config.PORT}`);
-  console.log(`   Database: ${config.MONGODB_URI.replace(/\/\/.*@/, '//***:***@')}`);
-  console.log(`   CORS Origin: ${config.CORS_ORIGIN}`);
-  console.log(`   JWT Expires: ${config.JWT_EXPIRES_IN}`);
-  console.log(`   Rate Limiting: ${config.FEATURES.RATE_LIMITING ? 'Enabled' : 'Disabled'}`);
-  console.log(`   Real-time Updates: ${config.FEATURES.REAL_TIME_UPDATES ? 'Enabled' : 'Disabled'}`);
-  console.log(`   Audit Logging: ${config.FEATURES.AUDIT_LOGGING ? 'Enabled' : 'Disabled'}`);
+  if (process.env.NODE_ENV !== 'production') {
+    console.log('📋 Configuration Summary:');
+    console.log(`   Environment: ${config.NODE_ENV}`);
+    console.log(`   Port: ${config.PORT}`);
+    console.log(`   Database: ${config.MONGODB_URI.replace(/\/\/.*@/, '//***:***@')}`);
+    console.log(`   CORS Origin: ${config.CORS_ORIGIN}`);
+    console.log(`   JWT Expires: ${config.JWT_EXPIRES_IN}`);
+    console.log(`   Rate Limiting: ${config.FEATURES.RATE_LIMITING ? 'Enabled' : 'Disabled'}`);
+    console.log(`   Real-time Updates: ${config.FEATURES.REAL_TIME_UPDATES ? 'Enabled' : 'Disabled'}`);
+    console.log(`   Audit Logging: ${config.FEATURES.AUDIT_LOGGING ? 'Enabled' : 'Disabled'}`);
+  }
 };
 
 export default config;

@@ -8,9 +8,10 @@ import { User, Role, Session, CompanyAssignment } from '../models/index.js';
 import { config } from '../config/environment.js';
 import { AuthenticationError, AuthorizationError } from '../utils/errors.js';
 import { securityLogger } from '../utils/logger.js';
+import logger from '../utils/logger.js';
 
 /**
- * Authenticate user using JWT token
+ * Authenticate user using JWT token - Production Enhanced
  */
 export const authenticate = async (req, res, next) => {
   try {
@@ -21,14 +22,71 @@ export const authenticate = async (req, res, next) => {
       : null;
 
     if (!token) {
+      // Log failed authentication attempt
+      logger.warn('Authentication failed: No token provided', {
+        ip: req.ip,
+        userAgent: req.get('User-Agent'),
+        path: req.path
+      });
+
       return res.status(401).json({
         success: false,
         error: { message: 'Access token required' }
       });
     }
 
-    // Verify token
-    const decoded = jwt.verify(token, config.JWT_SECRET);
+    // Production: Additional token validation
+    if (process.env.NODE_ENV === 'production') {
+      // Check token format and length
+      if (token.length < 50 || token.length > 500) {
+        logger.warn('Authentication failed: Invalid token format', {
+          ip: req.ip,
+          tokenLength: token.length
+        });
+
+        return res.status(401).json({
+          success: false,
+          error: { message: 'Invalid token format' }
+        });
+      }
+
+      // Check for suspicious patterns
+      if (token.includes('<script>') || token.includes('javascript:')) {
+        logger.error('Security alert: Suspicious token content', {
+          ip: req.ip,
+          userAgent: req.get('User-Agent')
+        });
+
+        return res.status(401).json({
+          success: false,
+          error: { message: 'Invalid token' }
+        });
+      }
+    }
+
+    // Verify token with enhanced error handling
+    let decoded;
+    try {
+      decoded = jwt.verify(token, config.JWT_SECRET);
+    } catch (jwtError) {
+      logger.warn('JWT verification failed', {
+        error: jwtError.message,
+        ip: req.ip,
+        userAgent: req.get('User-Agent')
+      });
+
+      if (jwtError.name === 'TokenExpiredError') {
+        return res.status(401).json({
+          success: false,
+          error: { message: 'Token expired', code: 'TOKEN_EXPIRED' }
+        });
+      }
+
+      return res.status(401).json({
+        success: false,
+        error: { message: 'Invalid token', code: 'INVALID_TOKEN' }
+      });
+    }
 
     if (decoded.type !== 'access') {
       return res.status(401).json({
@@ -144,7 +202,14 @@ export const authenticate = async (req, res, next) => {
       });
     }
 
-    console.error('Authentication error:', error);
+    logger.error('Authentication error', {
+      error: error.message,
+      stack: error.stack,
+      ip: req.ip,
+      userAgent: req.get('User-Agent'),
+      path: req.path
+    });
+
     return res.status(500).json({
       success: false,
       error: { message: 'Authentication failed' }

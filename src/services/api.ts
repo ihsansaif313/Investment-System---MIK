@@ -28,13 +28,53 @@ import {
 // Use real API instead of mock API
 const USE_MOCK_API = import.meta.env.VITE_USE_MOCK_API === 'true' && false; // Force real API
 
+// Data transformation functions
+const transformSubCompany = (apiCompany: any): SubCompanyWithDetails => {
+  return {
+    id: apiCompany._id,
+    owner_company_id: apiCompany.ownerCompanyId?._id || apiCompany.ownerCompanyId,
+    name: apiCompany.name || 'Unknown Company',
+    industry: apiCompany.industry || 'Unknown',
+    description: apiCompany.description || '',
+    address: apiCompany.address || '',
+    contact_email: apiCompany.contactEmail || '',
+    phone: apiCompany.contactPhone || '',
+    logo: apiCompany.logo || '',
+    established_date: apiCompany.establishedDate ? new Date(apiCompany.establishedDate) : new Date(),
+    status: apiCompany.status || 'active',
+    created_at: apiCompany.createdAt ? new Date(apiCompany.createdAt) : new Date(),
+    updated_at: apiCompany.updatedAt ? new Date(apiCompany.updatedAt) : new Date(),
+    ownerCompany: apiCompany.ownerCompanyId || { id: '', name: '', address: '', contact_email: '', established_date: new Date(), created_at: new Date(), updated_at: new Date() },
+    admin: apiCompany.adminUserId ? {
+      id: apiCompany.adminUserId._id || apiCompany.adminUserId,
+      email: apiCompany.adminUserId.email || '',
+      firstName: apiCompany.adminUserId.firstName || '',
+      lastName: apiCompany.adminUserId.lastName || '',
+      role: { id: '', type: 'admin' as UserRole, permissions: [], created_at: new Date(), updated_at: new Date() },
+      created_at: new Date(),
+      updated_at: new Date()
+    } : undefined,
+    totalInvestments: 0,
+    totalInvestors: 0,
+    totalValue: 0,
+    profitLoss: {
+      profit: 0,
+      loss: 0,
+      roi: 0
+    }
+  };
+};
+
 class ApiService {
   private api: AxiosInstance;
   private baseURL: string;
 
   constructor() {
-    // Hardcode baseURL to ensure correct API endpoint
-    this.baseURL = 'http://localhost:3001/api';
+    // Use environment variable for API URL to support network access
+    // Temporarily hardcode for network access
+    this.baseURL = 'http://192.168.1.8:3001/api';
+    console.log('API Service initialized with baseURL:', this.baseURL);
+    console.log('Environment variables:', import.meta.env);
     
     this.api = axios.create({
       baseURL: this.baseURL,
@@ -239,23 +279,24 @@ class ApiService {
       return mockApiService.getSubCompanies();
     }
 
-    const response: AxiosResponse<ApiResponse<SubCompanyWithDetails[]>> = await this.api.get('/companies');
-    return response.data.data!;
+    const response: AxiosResponse<ApiResponse<any[]>> = await this.api.get('/companies');
+    const apiCompanies = response.data.data!;
+    return apiCompanies.map(transformSubCompany);
   }
   
   async getSubCompanyById(id: string): Promise<SubCompanyWithDetails> {
-    const response: AxiosResponse<ApiResponse<SubCompanyWithDetails>> = await this.api.get(`/companies/sub/${id}`);
-    return response.data.data!;
+    const response: AxiosResponse<ApiResponse<any>> = await this.api.get(`/companies/sub/${id}`);
+    return transformSubCompany(response.data.data!);
   }
-  
+
   async createSubCompany(companyData: CreateSubCompanyForm): Promise<SubCompanyWithDetails> {
-    const response: AxiosResponse<ApiResponse<SubCompanyWithDetails>> = await this.api.post('/companies/sub', companyData);
-    return response.data.data!;
+    const response: AxiosResponse<ApiResponse<any>> = await this.api.post('/companies/sub', companyData);
+    return transformSubCompany(response.data.data!);
   }
-  
+
   async updateSubCompany(id: string, companyData: Partial<SubCompany>): Promise<SubCompanyWithDetails> {
-    const response: AxiosResponse<ApiResponse<SubCompanyWithDetails>> = await this.api.put(`/companies/sub/${id}`, companyData);
-    return response.data.data!;
+    const response: AxiosResponse<ApiResponse<any>> = await this.api.put(`/companies/sub/${id}`, companyData);
+    return transformSubCompany(response.data.data!);
   }
   
   async deleteSubCompany(id: string): Promise<void> {

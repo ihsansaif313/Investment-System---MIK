@@ -180,23 +180,29 @@ function DataTable<T extends Record<string, any>>({
     <div className={`bg-slate-800 rounded-lg overflow-hidden ${className}`}>
       {/* Header with search and actions */}
       {(searchable || filterable || exportable) && (
-        <div className="p-4 border-b border-slate-700 flex items-center justify-between">
-          <div className="flex items-center gap-3">
+        <div className="p-3 sm:p-4 border-b border-slate-700 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
             {searchable && (
-              <div className="relative">
+              <div className="relative flex-1 sm:flex-none">
                 <Input
                   placeholder={searchPlaceholder}
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  leftIcon={<Search size={16} />}
-                  className="w-64"
+                  leftIcon={<Search size={14} className="sm:w-4 sm:h-4" />}
+                  className="w-full sm:w-48 lg:w-64"
+                  fullWidth
                 />
               </div>
             )}
-            
+
             {filterable && (
-              <Button variant="secondary" leftIcon={<Filter size={16} />}>
-                Filter
+              <Button
+                variant="secondary"
+                size="sm"
+                leftIcon={<Filter size={14} className="sm:w-4 sm:h-4" />}
+                className="w-full sm:w-auto"
+              >
+                <span className="sm:inline">Filter</span>
               </Button>
             )}
           </div>
@@ -205,10 +211,12 @@ function DataTable<T extends Record<string, any>>({
             {exportable && (
               <Button
                 variant="secondary"
+                size="sm"
                 onClick={handleExport}
-                leftIcon={<Download size={16} />}
+                leftIcon={<Download size={14} className="sm:w-4 sm:h-4" />}
+                className="w-full sm:w-auto"
               >
-                Export
+                <span className="sm:inline">Export</span>
               </Button>
             )}
           </div>
@@ -216,52 +224,53 @@ function DataTable<T extends Record<string, any>>({
       )}
 
       {/* Table */}
-      <div className="overflow-x-auto">
-        <table className="w-full">
-          <thead className="bg-slate-700">
-            <tr>
-              {selectable && (
-                <th className="px-4 py-3 text-left">
-                  <input
-                    type="checkbox"
-                    checked={selectedRows.size === paginatedData.length && paginatedData.length > 0}
-                    onChange={handleSelectAll}
-                    className="rounded border-slate-600 bg-slate-700 text-yellow-500 focus:ring-yellow-500"
-                  />
-                </th>
-              )}
-              
-              {columns.map((column) => (
-                <th
-                  key={String(column.key)}
-                  className={`
-                    px-4 py-3 text-sm font-medium text-slate-300 
-                    ${column.align === 'center' ? 'text-center' : column.align === 'right' ? 'text-right' : 'text-left'}
-                    ${column.sortable ? 'cursor-pointer hover:text-white' : ''}
-                    ${column.className || ''}
-                  `}
-                  style={{ width: column.width }}
-                  onClick={() => handleSort(String(column.key))}
-                >
-                  <div className="flex items-center">
-                    {column.title}
-                    {column.sortable && renderSortIcon(String(column.key))}
-                  </div>
-                </th>
-              ))}
-              
-              {actions.length > 0 && (
-                <th className="px-4 py-3 text-right text-sm font-medium text-slate-300">
-                  Actions
-                </th>
-              )}
-            </tr>
-          </thead>
+      <div className="overflow-x-auto -mx-3 sm:-mx-4">
+        <div className="inline-block min-w-full align-middle">
+          <table className="min-w-full">
+            <thead className="bg-slate-700">
+              <tr>
+                {selectable && (
+                  <th className="px-2 sm:px-4 py-2 sm:py-3 text-left">
+                    <input
+                      type="checkbox"
+                      checked={selectedRows.size === paginatedData.length && paginatedData.length > 0}
+                      onChange={handleSelectAll}
+                      className="rounded border-slate-600 bg-slate-700 text-yellow-500 focus:ring-yellow-500"
+                    />
+                  </th>
+                )}
+
+                {columns.map((column) => (
+                  <th
+                    key={String(column.key)}
+                    className={`
+                      px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm font-medium text-slate-300
+                      ${column.align === 'center' ? 'text-center' : column.align === 'right' ? 'text-right' : 'text-left'}
+                      ${column.sortable ? 'cursor-pointer hover:text-white' : ''}
+                      ${column.className || ''}
+                    `}
+                    style={{ width: column.width }}
+                    onClick={() => handleSort(String(column.key))}
+                  >
+                    <div className="flex items-center">
+                      <span className="truncate">{column.title}</span>
+                      {column.sortable && renderSortIcon(String(column.key))}
+                    </div>
+                  </th>
+                ))}
+
+                {actions.length > 0 && (
+                  <th className="px-2 sm:px-4 py-2 sm:py-3 text-right text-xs sm:text-sm font-medium text-slate-300">
+                    Actions
+                  </th>
+                )}
+              </tr>
+            </thead>
           
           <tbody className="divide-y divide-slate-700">
             {loading ? (
               <tr>
-                <td colSpan={columns.length + (selectable ? 1 : 0) + (actions.length > 0 ? 1 : 0)} className="px-4 py-8 text-center">
+                <td colSpan={columns.length + (selectable ? 1 : 0) + (actions.length > 0 ? 1 : 0)} className="px-2 sm:px-4 py-6 sm:py-8 text-center">
                   <LoadingSpinner size="lg" />
                 </td>
               </tr>
@@ -280,7 +289,7 @@ function DataTable<T extends Record<string, any>>({
                     secondaryActionLabel={searchTerm ? 'Clear Search' : undefined}
                     onSecondaryAction={searchTerm ? () => setSearchTerm('') : undefined}
                     size="md"
-                    className="py-12"
+                    className="py-8 sm:py-12"
                   />
                 </td>
               </tr>
@@ -296,7 +305,7 @@ function DataTable<T extends Record<string, any>>({
                   onClick={() => onRowClick?.(row, index)}
                 >
                   {selectable && (
-                    <td className="px-4 py-3">
+                    <td className="px-2 sm:px-4 py-2 sm:py-3">
                       <input
                         type="checkbox"
                         checked={selectedRows.has(index)}
@@ -306,26 +315,28 @@ function DataTable<T extends Record<string, any>>({
                       />
                     </td>
                   )}
-                  
+
                   {columns.map((column) => (
                     <td
                       key={String(column.key)}
                       className={`
-                        px-4 py-3 text-sm text-slate-300
+                        px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm text-slate-300
                         ${column.align === 'center' ? 'text-center' : column.align === 'right' ? 'text-right' : 'text-left'}
                         ${column.className || ''}
                       `}
                     >
-                      {column.render
-                        ? column.render(row[column.key as keyof T], row, index)
-                        : String(row[column.key as keyof T] || '')
-                      }
+                      <div className="min-w-0">
+                        {column.render
+                          ? column.render(row[column.key as keyof T], row, index)
+                          : <span className="truncate block">{String(row[column.key as keyof T] || '')}</span>
+                        }
+                      </div>
                     </td>
                   ))}
-                  
+
                   {actions.length > 0 && (
-                    <td className="px-4 py-3 text-right">
-                      <div className="flex items-center justify-end gap-2">
+                    <td className="px-2 sm:px-4 py-2 sm:py-3 text-right">
+                      <div className="flex items-center justify-end gap-1 sm:gap-2">
                         {actions.map((action, actionIndex) => (
                           <Button
                             key={actionIndex}
@@ -336,8 +347,10 @@ function DataTable<T extends Record<string, any>>({
                               action.onClick(row);
                             }}
                             leftIcon={action.icon}
+                            className="text-xs"
                           >
-                            {action.label}
+                            <span className="hidden sm:inline">{action.label}</span>
+                            <span className="sm:hidden">{action.icon}</span>
                           </Button>
                         ))}
                       </div>
@@ -347,37 +360,43 @@ function DataTable<T extends Record<string, any>>({
               ))
             )}
           </tbody>
-        </table>
+          </table>
+        </div>
       </div>
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="px-4 py-3 border-t border-slate-700 flex items-center justify-between">
-          <div className="text-sm text-slate-400">
+        <div className="px-3 sm:px-4 py-3 border-t border-slate-700 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0">
+          <div className="text-xs sm:text-sm text-slate-400 text-center sm:text-left">
             Showing {((currentPage - 1) * pageSize) + 1} to {Math.min(currentPage * pageSize, filteredData.length)} of {filteredData.length} results
           </div>
-          
-          <div className="flex items-center gap-2">
+
+          <div className="flex items-center justify-center sm:justify-end gap-2">
             <Button
               size="sm"
               variant="secondary"
               disabled={currentPage === 1}
               onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+              className="text-xs"
             >
-              Previous
+              <span className="hidden sm:inline">Previous</span>
+              <span className="sm:hidden">Prev</span>
             </Button>
-            
-            <span className="text-sm text-slate-300">
-              Page {currentPage} of {totalPages}
+
+            <span className="text-xs sm:text-sm text-slate-300 px-2">
+              <span className="hidden sm:inline">Page {currentPage} of {totalPages}</span>
+              <span className="sm:hidden">{currentPage}/{totalPages}</span>
             </span>
-            
+
             <Button
               size="sm"
               variant="secondary"
               disabled={currentPage === totalPages}
               onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+              className="text-xs"
             >
-              Next
+              <span className="hidden sm:inline">Next</span>
+              <span className="sm:hidden">Next</span>
             </Button>
           </div>
         </div>

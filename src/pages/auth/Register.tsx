@@ -165,20 +165,20 @@ const Register: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
-      <div className="w-full max-w-2xl">
-        <Card className="p-8">
-          <div className="text-center mb-8">
-            <div className="w-16 h-16 bg-yellow-500 rounded-full flex items-center justify-center mx-auto mb-4">
-              <UserCheck className="w-8 h-8 text-white" />
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center px-4 py-6 sm:px-6 lg:px-8">
+      <div className="w-full max-w-sm sm:max-w-md lg:max-w-2xl xl:max-w-3xl">
+        <Card className="p-4 sm:p-6 lg:p-8">
+          <div className="text-center mb-6 sm:mb-8">
+            <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-r from-yellow-500 to-yellow-600 rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4">
+              <UserCheck className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
             </div>
-            <h1 className="text-3xl font-bold text-white mb-2">Create Account</h1>
-            <p className="text-slate-400">Join our investment management platform</p>
+            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white mb-2">Create Account</h1>
+            <p className="text-slate-400 text-sm sm:text-base">Join our investment management platform</p>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
             {/* Personal Information */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-2">
                   First Name *
@@ -191,9 +191,10 @@ const Register: React.FC = () => {
                   leftIcon={<User size={16} />}
                   error={errors.firstName}
                   disabled={isLoading}
+                  fullWidth
                 />
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-2">
                   Last Name *
@@ -206,6 +207,7 @@ const Register: React.FC = () => {
                   leftIcon={<User size={16} />}
                   error={errors.lastName}
                   disabled={isLoading}
+                  fullWidth
                 />
               </div>
             </div>
@@ -224,6 +226,7 @@ const Register: React.FC = () => {
                 leftIcon={<Mail size={16} />}
                 error={errors.email}
                 disabled={isLoading}
+                fullWidth
               />
             </div>
 
@@ -240,6 +243,7 @@ const Register: React.FC = () => {
                 leftIcon={<Phone size={16} />}
                 error={errors.phone}
                 disabled={isLoading}
+                fullWidth
               />
             </div>
 
@@ -266,18 +270,19 @@ const Register: React.FC = () => {
                 }
                 error={errors.password}
                 disabled={isLoading}
+                fullWidth
               />
-              
+
               {formData.password && (
-                <div className="mt-2">
+                <div className="mt-2 sm:mt-3">
                   <div className="flex items-center gap-2 mb-1">
                     <div className="flex-1 bg-slate-700 rounded-full h-2">
-                      <div 
+                      <div
                         className={`h-2 rounded-full transition-all duration-300 ${getPasswordStrengthColor()}`}
                         style={{ width: `${(passwordStrength / 5) * 100}%` }}
                       />
                     </div>
-                    <span className={`text-xs font-medium ${
+                    <span className={`text-xs font-medium whitespace-nowrap ${
                       passwordStrength <= 2 ? 'text-red-400' :
                       passwordStrength <= 3 ? 'text-yellow-400' :
                       passwordStrength <= 4 ? 'text-blue-400' : 'text-green-400'
@@ -285,7 +290,7 @@ const Register: React.FC = () => {
                       {getPasswordStrengthText()}
                     </span>
                   </div>
-                  <p className="text-xs text-slate-400">
+                  <p className="text-xs text-slate-400 leading-relaxed">
                     Password must contain uppercase, lowercase, number, and special character
                   </p>
                 </div>
@@ -314,11 +319,12 @@ const Register: React.FC = () => {
                 }
                 error={errors.confirmPassword}
                 disabled={isLoading}
+                fullWidth
               />
             </div>
 
             {/* Additional Information */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-2">
                   Date of Birth
@@ -330,9 +336,10 @@ const Register: React.FC = () => {
                   onChange={handleInputChange}
                   leftIcon={<Calendar size={16} />}
                   disabled={isLoading}
+                  fullWidth
                 />
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-2">
                   Role
@@ -341,7 +348,7 @@ const Register: React.FC = () => {
                   name="role"
                   value={formData.role}
                   onChange={handleInputChange}
-                  className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-yellow-500"
+                  className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 h-10 text-white focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-colors"
                   disabled={isLoading}
                 >
                   {ROLE_OPTIONS.map(role => (
@@ -364,17 +371,18 @@ const Register: React.FC = () => {
                 placeholder="Enter your address"
                 leftIcon={<MapPin size={16} />}
                 disabled={isLoading}
+                fullWidth
               />
             </div>
 
             {/* Security Notice */}
-            <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4">
-              <div className="flex items-start gap-3">
-                <Shield className="w-5 h-5 text-blue-400 mt-0.5" />
-                <div>
-                  <h4 className="text-blue-400 font-medium mb-1">Security & Privacy</h4>
-                  <p className="text-sm text-slate-300">
-                    Your account will be secured with industry-standard encryption. 
+            <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-3 sm:p-4">
+              <div className="flex items-start gap-2 sm:gap-3">
+                <Shield className="w-4 h-4 sm:w-5 sm:h-5 text-blue-400 mt-0.5 flex-shrink-0" />
+                <div className="min-w-0 flex-1">
+                  <h4 className="text-blue-400 font-medium mb-1 text-sm sm:text-base">Security & Privacy</h4>
+                  <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
+                    Your account will be secured with industry-standard encryption.
                     You'll receive an email verification link to activate your account.
                   </p>
                 </div>
@@ -388,17 +396,21 @@ const Register: React.FC = () => {
               size="lg"
               fullWidth
               isLoading={isLoading}
-              leftIcon={<CheckCircle size={20} />}
+              leftIcon={<CheckCircle size={18} className="sm:w-5 sm:h-5" />}
+              className="mt-6"
             >
               {isLoading ? 'Creating Account...' : 'Create Account'}
             </Button>
           </form>
 
           {/* Login Link */}
-          <div className="text-center mt-6">
-            <p className="text-slate-400">
+          <div className="text-center mt-4 sm:mt-6">
+            <p className="text-slate-400 text-sm sm:text-base">
               Already have an account?{' '}
-              <Link to="/login" className="text-yellow-500 hover:text-yellow-400 font-medium">
+              <Link
+                to="/login"
+                className="text-yellow-500 hover:text-yellow-400 font-medium transition-colors"
+              >
                 Sign in here
               </Link>
             </p>

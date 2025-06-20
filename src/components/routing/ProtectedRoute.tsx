@@ -3,7 +3,7 @@ import { Navigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 interface ProtectedRouteProps {
   children: React.ReactNode;
-  role?: 'superadmin' | 'admin' | 'investor';
+  role?: 'superadmin' | 'admin' | 'investor' | 'salesman';
 }
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   children,
@@ -31,6 +31,8 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
       return <Navigate to="/admin/dashboard" replace />;
     } else if (user?.role.type === 'investor') {
       return <Navigate to="/investor/dashboard" replace />;
+    } else if (user?.role.type === 'salesman') {
+      return <Navigate to="/salesman/dashboard" replace />;
     }
   }
   return <>{children}</>;

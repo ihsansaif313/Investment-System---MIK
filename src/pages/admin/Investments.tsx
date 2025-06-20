@@ -214,89 +214,96 @@ const Investments: React.FC = () => {
   return (
     <AdminDashboardLayout title="Investments" subtitle="Manage your company's investment portfolio">
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 mb-6 sm:mb-8">
         <MetricCard
           title="Total Value"
           value={`$${totalValue.toLocaleString()}`}
           change={{ value: 12.5, type: 'increase' }}
-          icon={<DollarSign className="w-6 h-6 text-green-500" />}
+          icon={<DollarSign className="w-5 h-5 sm:w-6 sm:h-6 text-green-500" />}
         />
 
         <MetricCard
           title="Active Investments"
           value={activeInvestments}
           change={{ value: 8.3, type: 'increase' }}
-          icon={<BarChart3 className="w-6 h-6 text-blue-500" />}
+          icon={<BarChart3 className="w-5 h-5 sm:w-6 sm:h-6 text-blue-500" />}
         />
 
         <MetricCard
           title="Total Investors"
           value={totalInvestors}
           change={{ value: 15.2, type: 'increase' }}
-          icon={<Users className="w-6 h-6 text-purple-500" />}
+          icon={<Users className="w-5 h-5 sm:w-6 sm:h-6 text-purple-500" />}
         />
 
         <MetricCard
           title="Average ROI"
           value={`${avgROI.toFixed(2)}%`}
           change={{ value: avgROI > 0 ? 5.7 : -2.1, type: avgROI > 0 ? 'increase' : 'decrease' }}
-          icon={<Target className="w-6 h-6 text-yellow-500" />}
+          icon={<Target className="w-5 h-5 sm:w-6 sm:h-6 text-yellow-500" />}
         />
       </div>
 
       {/* Charts Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        <Card className="p-6">
-          <h3 className="text-lg font-semibold text-white mb-4">Investment Status</h3>
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 sm:gap-6 mb-6 sm:mb-8">
+        <Card className="p-3 sm:p-4 lg:p-6">
+          <h3 className="text-base sm:text-lg font-semibold text-white mb-3 sm:mb-4">Investment Status</h3>
           <CustomBarChart
             data={investmentStatusData}
             xKey="name"
             bars={[{ key: 'value', name: 'Count', color: '#EAB308' }]}
-            height={250}
-            className="bg-transparent p-0"
+            height={200}
+            className="bg-transparent p-0 sm:h-[250px]"
           />
         </Card>
 
-        <Card className="p-6">
-          <h3 className="text-lg font-semibold text-white mb-4">Investment Types</h3>
+        <Card className="p-3 sm:p-4 lg:p-6">
+          <h3 className="text-base sm:text-lg font-semibold text-white mb-3 sm:mb-4">Investment Types</h3>
           {investmentTypeData.length > 0 ? (
             <CustomPieChart
               data={investmentTypeData}
-              height={250}
-              className="bg-transparent p-0"
+              height={200}
+              className="bg-transparent p-0 sm:h-[250px]"
             />
           ) : (
-            <div className="h-64 flex items-center justify-center text-slate-400">
+            <div className="h-48 sm:h-64 flex items-center justify-center text-slate-400 text-sm">
               No investment data available
             </div>
           )}
         </Card>
       </div>
       {/* Investments Table */}
-      <Card className="p-6">
-        <div className="flex items-center justify-between mb-6">
-          <h3 className="text-lg font-semibold text-white">All Investments</h3>
-          <div className="flex items-center gap-3">
+      <Card className="p-3 sm:p-4 lg:p-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 sm:mb-6 gap-3 sm:gap-0">
+          <h3 className="text-base sm:text-lg font-semibold text-white">All Investments</h3>
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
             <Button
               variant="secondary"
-              leftIcon={<Filter size={16} />}
+              size="sm"
+              leftIcon={<Filter size={14} className="sm:w-4 sm:h-4" />}
               onClick={() => setShowFiltersModal(true)}
+              className="w-full sm:w-auto"
             >
-              Filter
+              <span className="sm:inline">Filter</span>
             </Button>
             <Button
               variant="secondary"
-              leftIcon={<Download size={16} />}
+              size="sm"
+              leftIcon={<Download size={14} className="sm:w-4 sm:h-4" />}
               onClick={() => {/* TODO: Implement export */}}
+              className="w-full sm:w-auto"
             >
-              Export
+              <span className="sm:inline">Export</span>
             </Button>
             <Button
               variant="primary"
-              leftIcon={<Plus size={16} />}
+              size="sm"
+              leftIcon={<Plus size={14} className="sm:w-4 sm:h-4" />}
               onClick={() => navigate('/admin/investments/new')}
+              className="w-full sm:w-auto"
             >
-              New Investment
+              <span className="hidden sm:inline">New Investment</span>
+              <span className="sm:hidden">New</span>
             </Button>
           </div>
         </div>

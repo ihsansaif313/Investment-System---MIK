@@ -28,6 +28,8 @@ import Portfolio from './pages/investor/Portfolio';
 import InvestorPortfolioDashboard from './pages/investor/InvestorPortfolioDashboard';
 import Marketplace from './pages/investor/Marketplace';
 import PendingApproval from './pages/investor/PendingApproval';
+// Salesman pages
+import SalesmanDashboard from './pages/salesman/Dashboard';
 // Shared modules
 import Analytics from './pages/shared/Analytics';
 import Reports from './pages/shared/Reports';
@@ -104,6 +106,13 @@ function App() {
                       </ProtectedRoute>} />
                   <Route path="/investor/analytics" element={<ProtectedRoute role="investor">
                         <Analytics userRole="investor" />
+                      </ProtectedRoute>} />
+                  {/* Salesman routes */}
+                  <Route path="/salesman/dashboard" element={<ProtectedRoute role="salesman">
+                        <SalesmanDashboard />
+                      </ProtectedRoute>} />
+                  <Route path="/salesman/analytics" element={<ProtectedRoute role="salesman">
+                        <Analytics userRole="salesman" />
                       </ProtectedRoute>} />
                   {/* Universal routes */}
                   <Route path="/profile" element={<ProtectedRoute>

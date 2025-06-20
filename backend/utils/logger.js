@@ -4,8 +4,14 @@
  */
 
 import { ActivityLog } from '../models/index.js';
-import { config } from '../config/environment.js';
 import fs from 'fs';
+import path from 'path';
+
+// Ensure logs directory exists
+const logsDir = path.join(process.cwd(), 'logs');
+if (!fs.existsSync(logsDir)) {
+  fs.mkdirSync(logsDir, { recursive: true });
+}
 
 /**
  * Log Activity to Database
@@ -41,7 +47,17 @@ class Logger {
       info: 2,
       debug: 3
     };
-    this.currentLevel = this.levels[config.LOG_LEVEL] || this.levels.info;
+
+    // Set log level based on environment
+    const logLevel = process.env.LOG_LEVEL || (process.env.NODE_ENV === 'production' ? 'warn' : 'info');
+    this.currentLevel = this.levels[logLevel] || this.levels.info;
+
+    // Log file paths
+    this.logFiles = {
+      error: path.join(logsDir, 'error.log'),
+      combined: path.join(logsDir, 'combined.log'),
+      access: path.join(logsDir, 'access.log')
+    };
   }
 
   /**
@@ -68,9 +84,9 @@ class Logger {
     }
 
     const formattedMessage = this.formatMessage(level, message, meta);
-    
+
     // Console output with colors (only in development)
-    if (config.NODE_ENV !== 'production') {
+    if (process.env.NODE_ENV !== 'production') {
       const colors = {
         error: '\x1b[31m', // Red
         warn: '\x1b[33m',  // Yellow
@@ -82,14 +98,18 @@ class Logger {
       console.log(`${colors[level]}${formattedMessage}${resetColor}`);
     }
 
-    // File logging for production
-    if (config.NODE_ENV === 'production' && config.LOG_FILE) {
-      try {
-        fs.appendFileSync(config.LOG_FILE, formattedMessage + '\n');
-      } catch (error) {
-        // Fallback to console in case of file logging failure
-        console.error('Failed to write to log file:', error);
+    // File logging for production and development
+    try {
+      // Write to combined log
+      fs.appendFileSync(this.logFiles.combined, formattedMessage + '\n');
+
+      // Write errors to separate error log
+      if (level === 'error') {
+        fs.appendFileSync(this.logFiles.error, formattedMessage + '\n');
       }
+    } catch (error) {
+      // Fallback to console in case of file logging failure
+      console.error('Failed to write to log file:', error);
     }
   }
 

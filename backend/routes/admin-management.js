@@ -236,9 +236,16 @@ router.get('/status/:userId',
         });
       }
 
-      const adminRole = await Role.findOne({ 
-        userId, 
-        type: 'admin' 
+      // Disable caching for real-time status data
+      res.set({
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      });
+
+      const adminRole = await Role.findOne({
+        userId,
+        type: 'admin'
       });
 
       if (!adminRole) {
@@ -247,6 +254,8 @@ router.get('/status/:userId',
           message: 'Admin role not found'
         });
       }
+
+      console.log(`[DEBUG] Admin status for ${userId}:`, { status: adminRole.status, notes: adminRole.notes });
 
       res.json({
         success: true,
