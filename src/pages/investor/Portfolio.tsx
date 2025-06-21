@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { PieChartIcon, TrendingUpIcon, TrendingDownIcon, DollarSignIcon, PercentIcon } from 'lucide-react';
 import DashboardLayout from '../../layouts/DashboardLayout';
 import Button from '../../components/ui/Button';
@@ -6,23 +6,111 @@ import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import { CustomAreaChart, CustomPieChart } from '../../components/ui/Charts';
 import { useData } from '../../contexts/DataContext';
 import { useAuth } from '../../contexts/AuthContext';
+import { getInvestorPortfolio, getDashboardMetrics } from '../../data/demoData';
 const Portfolio: React.FC = () => {
   const [timeframe, setTimeframe] = useState('all');
+  const [loading, setLoading] = useState(true);
   const { state, fetchInvestorAnalytics, fetchInvestorInvestments } = useData();
   const { user } = useAuth();
 
+  // Check if this is a demo user
+  const isDemoUser = user && (user as any).isDemo;
+
+  // Memoized fetch functions to prevent infinite re-renders
+  const fetchData = useCallback(async () => {
+    if (!user) return;
+
+    try {
+      setLoading(true);
+
+      // For demo users, we don't need to fetch from API
+      if (isDemoUser) {
+        // Demo data is handled directly in the component
+        setLoading(false);
+        return;
+      }
+
+      // For real users, fetch from API
+      await Promise.all([
+        fetchInvestorAnalytics(user.id),
+        fetchInvestorInvestments(user.id)
+      ]);
+    } catch (error) {
+      console.error('Error fetching portfolio data:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [user, isDemoUser, fetchInvestorAnalytics, fetchInvestorInvestments]);
+
   // Load portfolio data on component mount
   useEffect(() => {
-    if (user) {
-      fetchInvestorAnalytics(user.id);
-      fetchInvestorInvestments(user.id);
-    }
-  }, [user, fetchInvestorAnalytics, fetchInvestorInvestments]);
+    fetchData();
+  }, [fetchData]);
 
-  // Get analytics data
-  const analytics = state.analytics.investor;
-  const investments = state.investorInvestments;
-  const loading = state.loading.analytics || state.loading.investments;
+  // Get analytics data - use demo data for demo users
+  const getDemoAnalytics = () => {
+    if (isDemoUser && user?.id === 'demo-investor-001') {
+      return {
+        totalValue: 250000,
+        totalProfit: 46750,
+        totalLoss: 0,
+        roi: 18.7,
+        monthlyGrowth: 3.2,
+        portfolioDistribution: [
+          { assetType: 'Technology', percentage: 40, value: 100000 },
+          { assetType: 'Healthcare', percentage: 30, value: 75000 },
+          { assetType: 'Real Estate', percentage: 20, value: 50000 },
+          { assetType: 'Finance', percentage: 10, value: 25000 }
+        ]
+      };
+    }
+    return null;
+  };
+
+  const getDemoInvestments = () => {
+    if (isDemoUser && user?.id === 'demo-investor-001') {
+      const portfolioData = getInvestorPortfolio(user.id);
+
+      // Transform demo data to match component expectations
+      return portfolioData.map((item: any) => ({
+        id: item.id,
+        amount_invested: item.amount,
+        currentValue: item.currentValue,
+        status: item.status,
+        investment: {
+          name: getInvestmentName(item.investmentId),
+          asset: {
+            type: getInvestmentType(item.investmentId)
+          }
+        }
+      }));
+    }
+    return [];
+  };
+
+  // Helper functions to get investment details
+  const getInvestmentName = (investmentId: string) => {
+    const investmentNames: { [key: string]: string } = {
+      'inv-1': 'Apple Inc. (AAPL)',
+      'inv-3': 'Microsoft Corporation (MSFT)',
+      'inv-4': 'Tesla Inc. (TSLA)',
+      'inv-6': 'Amazon.com Inc. (AMZN)'
+    };
+    return investmentNames[investmentId] || 'Unknown Investment';
+  };
+
+  const getInvestmentType = (investmentId: string) => {
+    const investmentTypes: { [key: string]: string } = {
+      'inv-1': 'Technology',
+      'inv-3': 'Technology',
+      'inv-4': 'Technology',
+      'inv-6': 'Technology'
+    };
+    return investmentTypes[investmentId] || 'Other';
+  };
+
+  const analytics = isDemoUser ? getDemoAnalytics() : state.analytics.investor;
+  const investments = isDemoUser ? getDemoInvestments() : state.investorInvestments;
 
   // Calculate portfolio breakdown from actual data
   const calculatePortfolioBreakdown = () => {
@@ -35,20 +123,28 @@ const Portfolio: React.FC = () => {
     }));
   };
 
-  // Generate chart data from analytics
-  const generateChartData = () => {
-    if (!analytics) return Array(10).fill(50); // Default fallback
+  // Generate performance chart data
+  const generatePerformanceData = () => {
+    if (!analytics) return [];
 
-    // Use monthly performance data if available
-    const baseValue = 50;
-    const variation = analytics.monthlyGrowth || 0;
-    return Array(10).fill(0).map((_, index) => {
-      const trend = (variation / 100) * 10; // Convert to chart scale
-      return Math.max(20, Math.min(95, baseValue + (index * trend) + (Math.random() * 10 - 5)));
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const currentMonth = new Date().getMonth();
+
+    return months.slice(0, currentMonth + 1).map((month, index) => {
+      const baseInvested = 250000;
+      const growth = (analytics.monthlyGrowth || 0) / 100;
+      const invested = baseInvested;
+      const value = baseInvested * (1 + (growth * (index + 1) / 12));
+
+      return {
+        name: month,
+        invested: Math.round(invested),
+        value: Math.round(value)
+      };
     });
   };
 
-  const chartData = generateChartData();
+  const performanceData = generatePerformanceData();
   const portfolioBreakdown = calculatePortfolioBreakdown();
   const getStatusColor = (status: string) => {
     switch (status) {
