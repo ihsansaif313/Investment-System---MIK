@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useReducer, useEffect, ReactNode } from 'react';
 import apiService from '../services/api';
+import { useAuth } from './AuthContext';
 import {
   UserWithRole,
   SubCompanyWithDetails,
@@ -336,6 +337,10 @@ const CACHE_DURATION = 5 * 60 * 1000;
 export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [state, dispatch] = useReducer(dataReducer, initialState);
 
+  // Check if demo mode is enabled
+  const isDemoMode = import.meta.env.VITE_DEMO_MODE === 'true';
+  const useMockAPI = import.meta.env.VITE_USE_MOCK_API === 'true';
+
   // Helper function to handle API calls with loading and error states
   const handleApiCall = async <T,>(
     apiCall: () => Promise<T>,
@@ -448,6 +453,12 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   // Investment management functions
   const fetchInvestments = async (filters?: InvestmentFilters, forceRefresh: boolean = false) => {
+    // Skip API calls in demo mode
+    if (isDemoMode || useMockAPI) {
+      console.log('Demo mode: Skipping fetchInvestments API call');
+      return;
+    }
+
     if (!forceRefresh && !isDataStale('investments')) return;
 
     const investments = await handleApiCall(
@@ -536,6 +547,12 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   // Investor investment management functions
   const fetchInvestorInvestments = async (userId?: string, forceRefresh: boolean = false) => {
+    // Skip API calls in demo mode
+    if (isDemoMode || useMockAPI) {
+      console.log('Demo mode: Skipping fetchInvestorInvestments API call');
+      return;
+    }
+
     const investorInvestments = await handleApiCall(
       () => apiService.getInvestorInvestments(userId),
       'investments',
@@ -593,6 +610,12 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   // Analytics functions
   const fetchSuperadminAnalytics = async (forceRefresh: boolean = false) => {
+    // Skip API calls in demo mode
+    if (isDemoMode || useMockAPI) {
+      console.log('Demo mode: Skipping fetchSuperadminAnalytics API call');
+      return;
+    }
+
     if (!forceRefresh && !isDataStale('analytics')) return;
 
     const analytics = await handleApiCall(
@@ -608,6 +631,12 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   const fetchAdminAnalytics = async (subCompanyId?: string, forceRefresh: boolean = false) => {
+    // Skip API calls in demo mode
+    if (isDemoMode || useMockAPI) {
+      console.log('Demo mode: Skipping fetchAdminAnalytics API call');
+      return;
+    }
+
     if (!forceRefresh && !isDataStale('analytics')) return;
 
     const analytics = await handleApiCall(
@@ -623,6 +652,12 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   const fetchInvestorAnalytics = async (userId?: string, forceRefresh: boolean = false, subCompanyId?: string) => {
+    // Skip API calls in demo mode
+    if (isDemoMode || useMockAPI) {
+      console.log('Demo mode: Skipping fetchInvestorAnalytics API call');
+      return;
+    }
+
     if (!forceRefresh && !isDataStale('analytics')) return;
 
     const analytics = await handleApiCall(
