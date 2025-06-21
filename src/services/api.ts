@@ -28,8 +28,8 @@ import {
   ActivityLog
 } from '../types/database';
 
-// Use real API instead of mock API
-const USE_MOCK_API = import.meta.env.VITE_USE_MOCK_API === 'true' && false; // Force real API
+// Use mock API for demo mode in production
+const USE_MOCK_API = import.meta.env.VITE_USE_MOCK_API === 'true';
 
 // Data transformation functions
 const transformSubCompany = (apiCompany: any): SubCompanyWithDetails => {
