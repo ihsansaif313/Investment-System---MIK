@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Frontend-Backend Connection Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #1e293b;
+            color: white;
+        }
+        .test-section {
+            background-color: #334155;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+        }
+        button {
+            background-color: #3b82f6;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #2563eb;
+        }
+        .success {
+            color: #10b981;
+        }
+        .error {
+            color: #ef4444;
+        }
+        .info {
+            color: #06b6d4;
+        }
+        pre {
+            background-color: #1e293b;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 Frontend-Backend Connection Test</h1>
+    
+    <div class="test-section">
+        <h2>1. Backend Health Check</h2>
+        <button onclick="testBackendHealth()">Test Backend Health</button>
+        <div id="health-result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>2. Admin Login Test</h2>
+        <button onclick="testAdminLogin()">Test Admin Login</button>
+        <div id="login-result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>3. Company Assignments Test</h2>
+        <button onclick="testCompanyAssignments()">Test Company Assignments</button>
+        <div id="assignments-result"></div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:3001/api';
+        
+        async function testBackendHealth() {
+            const resultDiv = document.getElementById('health-result');
+            resultDiv.innerHTML = '<p class="info">Testing backend health...</p>';
+            
+            try {
+                const response = await fetch('http://localhost:3001/health');
+                const data = await response.text();
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = `
+                        <p class="success">✅ Backend is healthy!</p>
+                        <pre>${data}</pre>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `
+                        <p class="error">❌ Backend health check failed</p>
+                        <pre>Status: ${response.status}\nResponse: ${data}</pre>
+                    `;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <p class="error">❌ Cannot connect to backend</p>
+                    <pre>Error: ${error.message}</pre>
+                `;
+            }
+        }
+
+        async function testAdminLogin() {
+            const resultDiv = document.getElementById('login-result');
+            resultDiv.innerHTML = '<p class="info">Testing admin login...</p>';
+            
+            try {
+                const response = await fetch(`${API_BASE}/auth/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        email: 'arsl@gmail.com',
+                        password: 'Ihs@n2553.'
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    const user = data.data.user;
+                    const hasAssignments = user.companyAssignments && user.companyAssignments.length > 0;
+                    
+                    resultDiv.innerHTML = `
+                        <p class="success">✅ Admin login successful!</p>
+                        <div>
+                            <h4>User Details:</h4>
+                            <p><strong>Email:</strong> ${user.email}</p>
+                            <p><strong>Name:</strong> ${user.firstName} ${user.lastName}</p>
+                            <p><strong>Role:</strong> ${user.role.type}</p>
+                            <p><strong>Status:</strong> ${user.role.status}</p>
+                            <p><strong>Has Company Assignments:</strong> ${hasAssignments ? 'YES' : 'NO'}</p>
+                            ${hasAssignments ? `<p><strong>Number of Assignments:</strong> ${user.companyAssignments.length}</p>` : ''}
+                        </div>
+                        <details>
+                            <summary>Full Response</summary>
+                            <pre>${JSON.stringify(data, null, 2)}</pre>
+                        </details>
+                    `;
+                    
+                    // Store token for next test
+                    window.testToken = data.data.token;
+                    window.testUserId = user.id;
+                } else {
+                    resultDiv.innerHTML = `
+                        <p class="error">❌ Admin login failed</p>
+                        <pre>Status: ${response.status}\nResponse: ${JSON.stringify(data, null, 2)}</pre>
+                    `;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <p class="error">❌ Login request failed</p>
+                    <pre>Error: ${error.message}</pre>
+                `;
+            }
+        }
+
+        async function testCompanyAssignments() {
+            const resultDiv = document.getElementById('assignments-result');
+            
+            if (!window.testToken || !window.testUserId) {
+                resultDiv.innerHTML = '<p class="error">❌ Please run admin login test first</p>';
+                return;
+            }
+            
+            resultDiv.innerHTML = '<p class="info">Testing company assignments API...</p>';
+            
+            try {
+                const response = await fetch(`${API_BASE}/company-assignments/user/${window.testUserId}`, {
+                    headers: {
+                        'Authorization': `Bearer ${window.testToken}`
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    const assignments = data.data || [];
+                    
+                    resultDiv.innerHTML = `
+                        <p class="success">✅ Company assignments API working!</p>
+                        <p><strong>Number of assignments:</strong> ${assignments.length}</p>
+                        ${assignments.length > 0 ? `
+                            <h4>Assignments:</h4>
+                            ${assignments.map((assignment, index) => `
+                                <div style="margin: 10px 0; padding: 10px; background-color: #1e293b; border-radius: 4px;">
+                                    <p><strong>Assignment ${index + 1}:</strong></p>
+                                    <p>Company: ${assignment.subCompanyId?.name || 'Unknown'}</p>
+                                    <p>Status: ${assignment.status}</p>
+                                    <p>Permissions: ${assignment.permissions?.join(', ') || 'None'}</p>
+                                </div>
+                            `).join('')}
+                        ` : '<p>No assignments found</p>'}
+                        <details>
+                            <summary>Full Response</summary>
+                            <pre>${JSON.stringify(data, null, 2)}</pre>
+                        </details>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `
+                        <p class="error">❌ Company assignments API failed</p>
+                        <pre>Status: ${response.status}\nResponse: ${JSON.stringify(data, null, 2)}</pre>
+                    `;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <p class="error">❌ Company assignments request failed</p>
+                    <pre>Error: ${error.message}</pre>
+                `;
+            }
+        }
+
+        // Auto-run health check on page load
+        window.addEventListener('load', () => {
+            testBackendHealth();
+        });
+    </script>
+</body>
+</html>

@@ -11,6 +11,7 @@ import { asyncHandler, successResponse, errorResponse, AuthenticationError } fro
 import { validationResult } from 'express-validator';
 import { config } from '../config/environment.js';
 import { logActivity, securityLogger } from '../utils/logger.js';
+import { sendVerificationEmail, sendPasswordResetEmail } from '../utils/emailService.js';
 
 class AuthController {
   /**
@@ -123,8 +124,14 @@ class AuthController {
       emailVerificationExpires: new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 hours
     });
 
-    // TODO: Send verification email
-    // await emailService.sendVerificationEmail(user.email, user.firstName, verificationToken);
+    // Send verification email
+    try {
+      await sendVerificationEmail(user.email, user.firstName, verificationToken);
+      console.log(`Verification email sent to: ${user.email}`);
+    } catch (emailError) {
+      console.error('Failed to send verification email:', emailError.message);
+      // Continue with registration even if email fails
+    }
 
     successResponse(res, {
       user,
@@ -247,8 +254,14 @@ class AuthController {
         passwordResetExpires: new Date(Date.now() + 60 * 60 * 1000) // 1 hour
       });
 
-      // TODO: Send password reset email
-      // await emailService.sendPasswordResetEmail(user.email, user.firstName, resetToken);
+      // Send password reset email
+      try {
+        await sendPasswordResetEmail(user.email, user.firstName, resetToken);
+        console.log(`Password reset email sent to: ${user.email}`);
+      } catch (emailError) {
+        console.error('Failed to send password reset email:', emailError.message);
+        // Continue with process even if email fails
+      }
 
       // Log password reset request
       await logActivity({
@@ -397,8 +410,14 @@ class AuthController {
         emailVerificationExpires: new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 hours
       });
 
-      // TODO: Send verification email
-      // await emailService.sendVerificationEmail(user.email, user.firstName, verificationToken);
+      // Send verification email
+      try {
+        await sendVerificationEmail(user.email, user.firstName, verificationToken);
+        console.log(`Verification email resent to: ${user.email}`);
+      } catch (emailError) {
+        console.error('Failed to resend verification email:', emailError.message);
+        // Continue with process even if email fails
+      }
 
     } catch (error) {
       // Don't reveal if email exists

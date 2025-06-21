@@ -15,9 +15,10 @@ const router = express.Router();
 const validateCompanyCreation = [
   body('name').trim().isLength({ min: 1, max: 100 }).withMessage('Company name is required and must be less than 100 characters'),
   body('industry').trim().isLength({ min: 1, max: 50 }).withMessage('Industry is required'),
+  body('category').optional().trim().isLength({ max: 50 }).withMessage('Category must be less than 50 characters'),
   body('description').optional().trim().isLength({ max: 1000 }).withMessage('Description must be less than 1000 characters'),
-  body('contactEmail').isEmail().withMessage('Valid contact email is required'),
-  body('establishedDate').isISO8601().withMessage('Valid established date is required'),
+  body('contactEmail').optional().isEmail().withMessage('Valid contact email is required'),
+  body('establishedDate').optional().isISO8601().withMessage('Valid established date is required'),
   body('address').optional().trim().isLength({ max: 200 }).withMessage('Address must be less than 200 characters'),
   body('contactPhone').optional().trim().isLength({ max: 20 }).withMessage('Phone must be less than 20 characters'),
   body('website').optional().isURL().withMessage('Website must be a valid URL')
@@ -26,6 +27,7 @@ const validateCompanyCreation = [
 const validateCompanyUpdate = [
   body('name').optional().trim().isLength({ min: 1, max: 100 }).withMessage('Company name must be less than 100 characters'),
   body('industry').optional().trim().isLength({ min: 1, max: 50 }).withMessage('Industry must be between 1 and 50 characters'),
+  body('category').optional().trim().isLength({ max: 50 }).withMessage('Category must be less than 50 characters'),
   body('description').optional().trim().isLength({ max: 1000 }).withMessage('Description must be less than 1000 characters'),
   body('contactEmail').optional().isEmail().withMessage('Valid contact email is required'),
   body('establishedDate').optional().custom((value) => {
@@ -61,7 +63,7 @@ const validateAssignment = [
 // ============================================================================
 
 // Get all companies - Optimized with caching and performance improvements
-router.get('/', authenticate, authorize('superadmin'), optimizeQueries, cacheMiddleware(2 * 60 * 1000), async (req, res) => {
+router.get('/', authenticate, authorize('superadmin'), optimizeQueries, async (req, res) => {
   try {
     const { page = 1, limit = 10, search, status } = req.query;
     const skip = (page - 1) * Math.min(parseInt(limit), 100); // Limit max results
@@ -90,6 +92,13 @@ router.get('/', authenticate, authorize('superadmin'), optimizeQueries, cacheMid
         .lean(), // Return plain objects for better performance
       SubCompany.countDocuments(query)
     ]);
+
+    // Add cache-busting headers to ensure fresh data
+    res.set({
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0'
+    });
 
     res.json({
       success: true,
@@ -176,7 +185,7 @@ router.post('/', authenticate, authorize('superadmin'), validateCompanyCreation,
       });
     }
 
-    const { name, industry, description, contactEmail, establishedDate, address, contactPhone, website } = req.body;
+    const { name, industry, category, description, contactEmail, establishedDate, address, contactPhone, website } = req.body;
 
     // Check if company name already exists
     const existingCompany = await SubCompany.findOne({ name: { $regex: new RegExp(`^${name}$`, 'i') } });
@@ -205,7 +214,11 @@ router.post('/', authenticate, authorize('superadmin'), validateCompanyCreation,
     // Find a default admin user if none provided
     let adminUserId = req.body.adminUserId;
     if (!adminUserId) {
-      const adminRole = await Role.findOne({ type: 'admin' });
+      // Try to find admin role first, then superadmin as fallback
+      let adminRole = await Role.findOne({ type: 'admin' });
+      if (!adminRole) {
+        adminRole = await Role.findOne({ type: 'superadmin' });
+      }
       if (adminRole) {
         adminUserId = adminRole.userId;
       }
@@ -215,9 +228,10 @@ router.post('/', authenticate, authorize('superadmin'), validateCompanyCreation,
       ownerCompanyId: ownerCompany._id,
       name,
       industry,
+      category: category || 'General',
       description,
-      contactEmail,
-      establishedDate: new Date(establishedDate),
+      contactEmail: contactEmail || `contact@${name.toLowerCase().replace(/\s+/g, '')}.com`,
+      establishedDate: establishedDate ? new Date(establishedDate) : new Date(),
       address,
       contactPhone,
       website,
@@ -260,7 +274,7 @@ router.put('/:id', authenticate, authorize('superadmin'), param('id').isMongoId(
       });
     }
 
-    const { name, industry, description, contactEmail, establishedDate, address, contactPhone, website, status } = req.body;
+    const { name, industry, category, description, contactEmail, establishedDate, address, contactPhone, website, status } = req.body;
 
     // Check if another company with the same name exists
     const existingCompany = await SubCompany.findOne({
@@ -279,6 +293,7 @@ router.put('/:id', authenticate, authorize('superadmin'), param('id').isMongoId(
       {
         name,
         industry,
+        category: category || 'General',
         description,
         contactEmail,
         establishedDate: new Date(establishedDate),
@@ -499,8 +514,16 @@ router.delete('/sub/:id', authenticate, authorize('superadmin'), param('id').isM
 // Update sub-company (alias for main company endpoint)
 router.put('/sub/:id', authenticate, authorize('superadmin'), param('id').isMongoId(), validateCompanyUpdate, async (req, res) => {
   try {
+    console.log('🚨 SUB-COMPANY UPDATE ROUTE HIT!');
+    console.log('🔍 Company ID:', req.params.id);
+    console.log('🔍 Raw request body:', JSON.stringify(req.body, null, 2));
+    console.log('🔍 Content-Type:', req.get('Content-Type'));
+    console.log('🔍 User:', req.user?.id);
+    console.log('🔍 Timestamp:', new Date().toISOString());
+
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
+      console.log('❌ Validation errors:', errors.array());
       return res.status(400).json({
         success: false,
         message: 'Validation failed',
@@ -508,7 +531,18 @@ router.put('/sub/:id', authenticate, authorize('superadmin'), param('id').isMong
       });
     }
 
-    const { name, industry, description, contactEmail, establishedDate, address, contactPhone, website } = req.body;
+    const { name, industry, category, description, contactEmail, establishedDate, address, contactPhone, website } = req.body;
+
+    console.log('📋 Individual fields received:');
+    console.log('  - name:', name);
+    console.log('  - industry:', industry);
+    console.log('  - category:', category);
+    console.log('  - description:', description);
+    console.log('  - contactEmail:', contactEmail);
+    console.log('  - establishedDate:', establishedDate);
+    console.log('  - address:', address);
+    console.log('  - contactPhone:', contactPhone);
+    console.log('  - website:', website);
 
     logger.debug('Company update request', {
       companyId: req.params.id,
@@ -542,6 +576,7 @@ router.put('/sub/:id', authenticate, authorize('superadmin'), param('id').isMong
     const updateData = {};
     if (name) updateData.name = name;
     if (industry) updateData.industry = industry;
+    if (category !== undefined) updateData.category = category || 'General';
     if (description !== undefined) updateData.description = description;
     if (contactEmail) updateData.contactEmail = contactEmail;
     if (establishedDate) updateData.establishedDate = new Date(establishedDate);
@@ -592,8 +627,26 @@ router.put('/sub/:id', authenticate, authorize('superadmin'), param('id').isMong
 // Create new sub-company (alias for main company endpoint)
 router.post('/sub', authenticate, authorize('superadmin'), validateCompanyCreation, async (req, res) => {
   try {
+    console.log('🚨 SUB-COMPANY CREATION ROUTE HIT!');
+    console.log('🔍 Raw request body:', JSON.stringify(req.body, null, 2));
+    console.log('🔍 Content-Type:', req.get('Content-Type'));
+    console.log('🔍 User:', req.user?.id);
+    console.log('🔍 Timestamp:', new Date().toISOString());
+
+    console.log('📋 Individual fields received:');
+    console.log('  - name:', req.body.name);
+    console.log('  - industry:', req.body.industry);
+    console.log('  - category:', req.body.category);
+    console.log('  - description:', req.body.description);
+    console.log('  - contactEmail:', req.body.contactEmail);
+    console.log('  - establishedDate:', req.body.establishedDate);
+    console.log('  - address:', req.body.address);
+    console.log('  - contactPhone:', req.body.contactPhone);
+    console.log('  - website:', req.body.website);
+
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
+      console.log('❌ Validation errors:', errors.array());
       return res.status(400).json({
         success: false,
         message: 'Validation failed',
@@ -601,7 +654,7 @@ router.post('/sub', authenticate, authorize('superadmin'), validateCompanyCreati
       });
     }
 
-    const { name, industry, description, contactEmail, establishedDate, address, contactPhone, website } = req.body;
+    const { name, industry, category, description, contactEmail, establishedDate, address, contactPhone, website } = req.body;
 
     // Check if company name already exists
     const existingCompany = await SubCompany.findOne({ name: { $regex: new RegExp(`^${name}$`, 'i') } });
@@ -630,19 +683,36 @@ router.post('/sub', authenticate, authorize('superadmin'), validateCompanyCreati
     // Find a default admin user if none provided
     let adminUserId = req.body.adminUserId;
     if (!adminUserId) {
-      const adminRole = await Role.findOne({ type: 'admin' });
+      // Try to find admin role first, then superadmin as fallback
+      let adminRole = await Role.findOne({ type: 'admin' });
+      if (!adminRole) {
+        adminRole = await Role.findOne({ type: 'superadmin' });
+      }
       if (adminRole) {
         adminUserId = adminRole.userId;
       }
     }
 
+    console.log('💾 Creating company with data:');
+    console.log('  - name:', name);
+    console.log('  - industry:', industry);
+    console.log('  - category:', category || 'General');
+    console.log('  - description:', description);
+    console.log('  - contactEmail:', contactEmail || `contact@${name.toLowerCase().replace(/\s+/g, '')}.com`);
+    console.log('  - establishedDate:', establishedDate ? new Date(establishedDate) : new Date());
+    console.log('  - address:', address);
+    console.log('  - contactPhone:', contactPhone);
+    console.log('  - website:', website);
+    console.log('  - adminUserId:', adminUserId);
+
     const company = new SubCompany({
       ownerCompanyId: ownerCompany._id,
       name,
       industry,
+      category: category || 'General',
       description,
-      contactEmail,
-      establishedDate: new Date(establishedDate),
+      contactEmail: contactEmail || `contact@${name.toLowerCase().replace(/\s+/g, '')}.com`,
+      establishedDate: establishedDate ? new Date(establishedDate) : new Date(),
       address,
       contactPhone,
       website,

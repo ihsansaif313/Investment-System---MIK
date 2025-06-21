@@ -91,6 +91,57 @@ const userSchema = new mongoose.Schema({
   twoFactorSecret: {
     type: String,
     default: null
+  },
+  // Investor-specific fields
+  cnic: {
+    type: String,
+    trim: true,
+    sparse: true, // Allows null values but ensures uniqueness when present
+    unique: true,
+    maxlength: 20
+  },
+  investmentPreferences: {
+    riskTolerance: {
+      type: String,
+      enum: ['low', 'medium', 'high'],
+      default: 'medium'
+    },
+    preferredSectors: [{
+      type: String,
+      trim: true
+    }],
+    investmentGoals: [{
+      type: String,
+      trim: true
+    }],
+    timeHorizon: {
+      type: String,
+      enum: ['short', 'medium', 'long'],
+      default: 'medium'
+    }
+  },
+  initialInvestmentAmount: {
+    type: Number,
+    min: 0,
+    default: null
+  },
+  accountStatus: {
+    type: String,
+    enum: ['pending_setup', 'active', 'suspended', 'inactive'],
+    default: 'active'
+  },
+  isFirstLogin: {
+    type: Boolean,
+    default: false // Will be set to true for admin-created investor accounts
+  },
+  createdBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    default: null // Will reference the admin who created this investor account
+  },
+  emailVerificationExpires: {
+    type: Date,
+    default: null
   }
 }, {
   timestamps: true,
@@ -103,6 +154,10 @@ userSchema.index({ email: 1 });
 userSchema.index({ isActive: 1 });
 userSchema.index({ emailVerified: 1 });
 userSchema.index({ createdAt: -1 });
+userSchema.index({ cnic: 1 }, { sparse: true }); // Sparse index for CNIC
+userSchema.index({ accountStatus: 1 });
+userSchema.index({ createdBy: 1 });
+userSchema.index({ isFirstLogin: 1 });
 
 // Virtual for full name
 userSchema.virtual('fullName').get(function() {
@@ -123,6 +178,11 @@ const roleSchema = new mongoose.Schema({
     required: true,
     enum: ['superadmin', 'admin', 'investor', 'salesman'],
     index: true
+  },
+  status: {
+    type: String,
+    enum: ['active', 'pending', 'inactive'],
+    default: 'active'
   },
   permissions: [{
     resource: {
@@ -229,6 +289,16 @@ const subCompanySchema = new mongoose.Schema({
     trim: true,
     maxlength: 100
   },
+  industry: {
+    type: String,
+    required: true,
+    trim: true
+  },
+  category: {
+    type: String,
+    trim: true,
+    default: 'General'
+  },
   address: {
     type: String,
     required: true,
@@ -292,6 +362,8 @@ subCompanySchema.index({ ownerCompanyId: 1 });
 subCompanySchema.index({ adminUserId: 1 });
 subCompanySchema.index({ registrationNumber: 1 });
 subCompanySchema.index({ taxId: 1 });
+subCompanySchema.index({ industry: 1 });
+subCompanySchema.index({ category: 1 });
 subCompanySchema.index({ isActive: 1 });
 
 // ============================================================================

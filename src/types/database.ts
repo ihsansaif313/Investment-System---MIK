@@ -17,6 +17,20 @@ export interface User {
   created_at: Date;
   last_login?: Date;
   updated_at: Date;
+  // Investor-specific fields
+  cnic?: string;
+  dateOfBirth?: Date;
+  address?: string;
+  investmentPreferences?: {
+    riskTolerance?: 'low' | 'medium' | 'high';
+    preferredSectors?: string[];
+    investmentGoals?: string[];
+    timeHorizon?: 'short' | 'medium' | 'long';
+  };
+  initialInvestmentAmount?: number;
+  accountStatus?: 'pending_setup' | 'active' | 'suspended' | 'inactive';
+  isFirstLogin?: boolean;
+  createdBy?: string; // ID of admin who created this investor account
 }
 
 export interface Role {
@@ -47,6 +61,7 @@ export interface SubCompany {
   owner_company_id: string;
   name: string;
   industry: string;
+  category?: string;
   description?: string;
   address?: string;
   contact_email?: string;
@@ -149,6 +164,19 @@ export interface ProfitLoss {
 export interface UserWithRole extends User {
   role: Role;
   subCompanyAdmin?: SubCompanyAdmin;
+  companyAssignments?: CompanyAssignmentWithDetails[];
+}
+
+export interface CompanyAssignmentWithDetails {
+  id: string;
+  companyId: string;
+  companyName: string;
+  companyIndustry: string;
+  companyDescription?: string;
+  companyLogo?: string;
+  permissions: string[];
+  assignedDate: Date;
+  status: 'active' | 'inactive' | 'pending';
 }
 
 export interface SubCompanyWithDetails extends SubCompany {
@@ -335,13 +363,16 @@ export interface UserFilters {
 export interface CreateSubCompanyForm {
   name: string;
   industry: string;
+  category?: string;
   description?: string;
   address?: string;
-  contact_email?: string;
-  phone?: string;
-  adminEmail: string;
-  adminFirstName: string;
-  adminLastName: string;
+  contactEmail?: string;
+  contactPhone?: string;
+  website?: string;
+  establishedDate?: string;
+  adminEmail?: string;
+  adminFirstName?: string;
+  adminLastName?: string;
   adminPhone?: string;
 }
 
@@ -362,6 +393,24 @@ export interface CreateInvestmentForm {
 export interface InvestForm {
   investment_id: string;
   amount_invested: number;
+  notes?: string;
+}
+
+export interface CreateInvestorForm {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  cnic: string;
+  address: string;
+  dateOfBirth: string;
+  investmentPreferences?: {
+    riskTolerance?: 'low' | 'medium' | 'high';
+    preferredSectors?: string[];
+    investmentGoals?: string[];
+    timeHorizon?: 'short' | 'medium' | 'long';
+  };
+  initialInvestmentAmount?: number;
   notes?: string;
 }
 

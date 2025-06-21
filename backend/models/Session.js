@@ -29,6 +29,11 @@ const sessionSchema = new Schema({
     type: Date,
     default: Date.now,
   },
+  isTemporary: {
+    type: Boolean,
+    default: false,
+    description: 'Indicates if this is a temporary session for password setup'
+  },
 }, {
   timestamps: true,
 });

@@ -6,19 +6,21 @@ import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 // Changed import from useCompany to useData
 import { useData } from '../../contexts/DataContext';
-import { INDUSTRY_OPTIONS } from '../../constants/formOptions';
+import { INDUSTRY_OPTIONS, CATEGORY_OPTIONS } from '../../constants/formOptions';
 
 const CreateSubCompany: React.FC = () => {
   const navigate = useNavigate();
   // Changed to useData hook
   const {
     createSubCompany,
+    fetchSubCompanies,
     state: { loading }
   } = useData();
 
   const [formData, setFormData] = useState({
     name: '',
     industry: '',
+    category: '',
     description: '',
     founded: '',
     location: '',
@@ -103,6 +105,7 @@ const CreateSubCompany: React.FC = () => {
       const subCompanyData = {
         name: newCompany.name,
         industry: newCompany.industry,
+        category: formData.category || 'General',
         description: newCompany.description,
         address: newCompany.location,
         established_date: new Date(Number(formData.founded), 0, 1),
@@ -114,6 +117,8 @@ const CreateSubCompany: React.FC = () => {
         adminPhone: '', // no adminPhone field in form, set empty string
       };
       await createSubCompany(subCompanyData);
+      // Force refresh the companies list
+      await fetchSubCompanies(true);
       navigate('/superadmin/companies');
     } catch (error: any) {
       console.error('Error creating company:', error);
@@ -169,6 +174,21 @@ const CreateSubCompany: React.FC = () => {
                 <div className="absolute right-3 top-2.5 h-5 w-5 text-slate-400 pointer-events-none" />
               </div>
               {errors.industry && <p className="mt-1 text-xs text-red-500">{errors.industry}</p>}
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-1">
+                Category
+              </label>
+              <div className="relative">
+                <select name="category" value={formData.category} onChange={handleChange} className={`w-full bg-slate-700 border ${errors.category ? 'border-red-500' : 'border-slate-600'} rounded-md py-2 pl-4 pr-10 text-white focus:outline-none focus:ring-2 focus:ring-yellow-500`}>
+                  <option value="">Select a category</option>
+                  {CATEGORY_OPTIONS.map(category => <option key={category} value={category}>
+                      {category}
+                    </option>)}
+                </select>
+                <div className="absolute right-3 top-2.5 h-5 w-5 text-slate-400 pointer-events-none" />
+              </div>
+              {errors.category && <p className="mt-1 text-xs text-red-500">{errors.category}</p>}
             </div>
             <div>
               <Input label="Founded Year" name="founded" value={formData.founded} onChange={handleChange} placeholder="YYYY" error={errors.founded} leftIcon={<CalendarIcon size={18} />} fullWidth />

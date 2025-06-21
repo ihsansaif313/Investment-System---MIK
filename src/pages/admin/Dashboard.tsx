@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   TrendingUp,
@@ -17,91 +17,42 @@ import {
 import AdminDashboardLayout from '../../layouts/AdminDashboardLayout';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
-import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import DataTable, { Column } from '../../components/ui/DataTable';
 import { ConfirmModal } from '../../components/ui/Modal';
-import { MetricCard, CustomBarChart, CustomPieChart, CustomAreaChart } from '../../components/ui/Charts';
-import { useData } from '../../contexts/DataContext';
-import { useAuth } from '../../contexts/AuthContext';
+import { MetricCard, CustomPieChart, CustomAreaChart } from '../../components/ui/Charts';
 import { useCompanySelection } from '../../contexts/CompanySelectionContext';
 import { useSuccessToast, useErrorToast } from '../../components/ui/Toast';
-import { InvestmentWithDetails } from '../../types/database';
-import { useRealTimeUpdates } from '../../hooks/useRealTimeUpdates';
+import {
+  demoInvestments,
+  getDashboardMetrics,
+  DemoInvestment
+} from '../../data/demoData';
 const AdminDashboard: React.FC = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
-  const { selectedCompany, hasCompanyAccess } = useCompanySelection();
-  const {
-    state,
-    fetchAdminAnalytics,
-    fetchInvestments,
-    fetchUsers,
-    fetchInvestorInvestments,
-    fetchActivityLogs,
-    deleteInvestment,
-    calculateMetrics,
-    calculatePerformanceTrend,
-    calculateInvestmentStatusDistribution
-  } = useData();
+  const { selectedCompany } = useCompanySelection();
   const successToast = useSuccessToast();
   const errorToast = useErrorToast();
 
   const [selectedTimeRange, setSelectedTimeRange] = useState<'7d' | '30d' | '90d' | '1y'>('30d');
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [selectedInvestment, setSelectedInvestment] = useState<InvestmentWithDetails | null>(null);
+  const [selectedInvestment, setSelectedInvestment] = useState<DemoInvestment | null>(null);
+  const [lastUpdate, setLastUpdate] = useState(new Date());
 
-  // Enable real-time updates
-  const { lastUpdate, manualRefresh } = useRealTimeUpdates({
-    enabled: true,
-    pollingInterval: 30000, // 30 seconds
-    onUpdate: (update) => {
-      console.log('Dashboard updated:', update);
-    }
-  });
+  // Use demo data instead of API calls
+  const investments = demoInvestments;
+  const dashboardMetrics = getDashboardMetrics();
 
-  // Get the admin's sub-company ID
-  const subCompanyId = user?.subCompanyAdmin?.sub_company_id;
-
-  useEffect(() => {
-    const loadDashboardData = async () => {
-      if (!subCompanyId) return;
-
-      try {
-        await Promise.all([
-          fetchAdminAnalytics(subCompanyId),
-          fetchInvestments({ subCompanyId }),
-          fetchUsers({ subCompanyId }),
-          fetchInvestorInvestments(),
-          fetchActivityLogs(10)
-        ]);
-      } catch (error) {
-        errorToast('Failed to load dashboard data', 'Please try refreshing the page');
-      }
-    };
-
-    loadDashboardData();
-  }, [subCompanyId]);
-  const {
-    investments,
-    analytics,
-    activityLogs,
-    loading
-  } = state;
-
-  const adminAnalytics = analytics.admin;
-  const isLoading = loading.investments || loading.analytics || loading.users;
-
-  // Calculate real-time metrics
-  const realTimeMetrics = calculateMetrics(subCompanyId);
-  const performanceTrends = calculatePerformanceTrend(subCompanyId, 'month');
-  const statusDistribution = calculateInvestmentStatusDistribution(subCompanyId);
-
+  // Manual refresh function
+  const manualRefresh = () => {
+    setLastUpdate(new Date());
+    successToast('Dashboard refreshed', 'Data has been updated');
+  };
   // Handle investment deletion
   const handleDeleteInvestment = async () => {
     if (!selectedInvestment) return;
 
     try {
-      await deleteInvestment(selectedInvestment.id);
+      // Simulate deletion (in real app, this would call API)
       successToast('Investment deleted successfully');
       setShowDeleteModal(false);
       setSelectedInvestment(null);
@@ -109,65 +60,76 @@ const AdminDashboard: React.FC = () => {
       errorToast('Failed to delete investment', 'Please try again');
     }
   };
-  // Prepare chart data using real calculations
-  const performanceData = performanceTrends.map(trend => ({
-    name: trend.period,
-    totalInvestment: trend.totalInvestment,
-    totalReturn: trend.totalReturn,
-    roi: trend.roi,
-    investmentCount: trend.investmentCount
-  }));
 
-  const investmentStatusData = statusDistribution.map(status => ({
-    name: status.status,
-    value: status.count,
-    color: status.status === 'Active' ? '#10B981' :
-           status.status === 'Paused' ? '#F59E0B' : '#6B7280'
-  }));
+  // Generate performance trend data for charts
+  const generatePerformanceTrends = () => {
+    const periods = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
+    return periods.map((period, index) => {
+      const baseValue = 1000000 + (index * 200000);
+      const variance = Math.random() * 100000;
+      const totalInvestment = baseValue + variance;
+      const totalReturn = totalInvestment * (0.05 + Math.random() * 0.15);
+
+      return {
+        name: period,
+        totalInvestment: Math.round(totalInvestment),
+        totalReturn: Math.round(totalReturn),
+        roi: Math.round((totalReturn / totalInvestment) * 100 * 100) / 100,
+        investmentCount: Math.floor(Math.random() * 5) + investments.length - 2
+      };
+    });
+  };
+
+  const performanceData = generatePerformanceTrends();
+  // Prepare chart data using demo data
+  const investmentStatusData = [
+    { name: 'Active', value: investments.filter(inv => inv.status === 'Active').length, color: '#10B981' },
+    { name: 'Completed', value: investments.filter(inv => inv.status === 'Completed').length, color: '#3B82F6' },
+    { name: 'Paused', value: investments.filter(inv => inv.status === 'Paused').length, color: '#F59E0B' },
+    { name: 'Cancelled', value: investments.filter(inv => inv.status === 'Cancelled').length, color: '#6B7280' }
+  ].filter(item => item.value > 0);
 
   const investmentTypeData = investments.reduce((acc, inv) => {
-    const type = inv.asset.type;
+    const type = inv.investmentType;
     const existing = acc.find(item => item.name === type);
     if (existing) {
-      existing.value += inv.current_value;
+      existing.value += inv.currentValue;
     } else {
       acc.push({
         name: type,
-        value: inv.current_value,
-        color: ['#EAB308', '#10B981', '#3B82F6', '#8B5CF6'][acc.length % 4]
+        value: inv.currentValue,
+        color: ['#EAB308', '#10B981', '#3B82F6', '#8B5CF6', '#F59E0B', '#EC4899'][acc.length % 6]
       });
     }
     return acc;
   }, [] as { name: string; value: number; color: string }[]);
 
   // Define table columns for investments
-  const investmentColumns: Column<InvestmentWithDetails>[] = [
+  const investmentColumns: Column<DemoInvestment>[] = [
     {
       key: 'name',
       title: 'Investment Name',
       render: (value, row) => (
         <div className="flex items-center gap-3">
-          {row.asset.logo && (
-            <img src={row.asset.logo} alt={row.asset.name} className="w-8 h-8 rounded-full" />
-          )}
+          <img src={row.companyLogo} alt={row.companyName} className="w-8 h-8 rounded-full" />
           <div>
             <div className="font-medium text-white">{value}</div>
-            <div className="text-sm text-slate-400">{row.asset.name}</div>
+            <div className="text-sm text-slate-400">{row.companyName}</div>
           </div>
         </div>
       ),
     },
     {
-      key: 'asset',
+      key: 'investmentType',
       title: 'Asset Type',
       render: (value) => (
         <span className="px-2 py-1 bg-slate-700 rounded text-sm text-slate-300">
-          {value.type}
+          {value}
         </span>
       ),
     },
     {
-      key: 'current_value',
+      key: 'currentValue',
       title: 'Current Value',
       align: 'right',
       render: (value) => (
@@ -183,7 +145,7 @@ const AdminDashboard: React.FC = () => {
       ),
     },
     {
-      key: 'currentROI',
+      key: 'actualROI',
       title: 'ROI',
       align: 'right',
       render: (value) => {
@@ -202,7 +164,8 @@ const AdminDashboard: React.FC = () => {
         const statusColors = {
           Active: 'bg-green-500/20 text-green-400',
           Completed: 'bg-blue-500/20 text-blue-400',
-          Paused: 'bg-yellow-500/20 text-yellow-400'
+          Paused: 'bg-yellow-500/20 text-yellow-400',
+          Cancelled: 'bg-red-500/20 text-red-400'
         };
         return (
           <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusColors[value as keyof typeof statusColors]}`}>
@@ -212,18 +175,7 @@ const AdminDashboard: React.FC = () => {
       },
     }
   ];
-  if (isLoading) {
-    return (
-      <AdminDashboardLayout
-        title={selectedCompany ? `${selectedCompany.name} Dashboard` : "Admin Dashboard"}
-        subtitle={selectedCompany ? `Manage ${selectedCompany.name}'s investments and investors` : "Manage your company's investments and investors"}
-      >
-        <div className="flex items-center justify-center h-64">
-          <LoadingSpinner size="xl" />
-        </div>
-      </AdminDashboardLayout>
-    );
-  }
+  // Loading state removed since we're using demo data
 
   return (
     <AdminDashboardLayout
@@ -275,7 +227,7 @@ const AdminDashboard: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <MetricCard
           title="Total Investments"
-          value={realTimeMetrics.investmentCount}
+          value={dashboardMetrics.totalInvestments}
           change={{
             value: performanceData.length >= 2 ?
               ((performanceData[performanceData.length - 1]?.totalInvestment || 0) -
@@ -290,7 +242,7 @@ const AdminDashboard: React.FC = () => {
 
         <MetricCard
           title="Active Investments"
-          value={statusDistribution.find(s => s.status === 'Active')?.count || 0}
+          value={dashboardMetrics.activeInvestments}
           change={{
             value: performanceData.length >= 2 ?
               ((performanceData[performanceData.length - 1]?.totalReturn || 0) -
@@ -305,10 +257,10 @@ const AdminDashboard: React.FC = () => {
 
         <MetricCard
           title="Total Value"
-          value={`$${realTimeMetrics.totalValue.toLocaleString()}`}
+          value={`$${dashboardMetrics.totalValue.toLocaleString()}`}
           change={{
-            value: realTimeMetrics.roi,
-            type: realTimeMetrics.roi >= 0 ? 'increase' : 'decrease'
+            value: dashboardMetrics.totalROI,
+            type: dashboardMetrics.totalROI >= 0 ? 'increase' : 'decrease'
           }}
           icon={<DollarSign className="w-6 h-6 text-yellow-500" />}
           chartData={performanceData.slice(-7).map(d => ({ value: d.totalInvestment + d.totalReturn }))}
@@ -317,12 +269,12 @@ const AdminDashboard: React.FC = () => {
 
         <MetricCard
           title="Average ROI"
-          value={`${realTimeMetrics.roi.toFixed(2)}%`}
+          value={`${dashboardMetrics.totalROI.toFixed(2)}%`}
           change={{
             value: performanceData.length >= 2 ?
               (performanceData[performanceData.length - 1]?.roi || 0) -
               (performanceData[performanceData.length - 2]?.roi || 0) : 0,
-            type: realTimeMetrics.roi >= 0 ? 'increase' : 'decrease'
+            type: dashboardMetrics.totalROI >= 0 ? 'increase' : 'decrease'
           }}
           icon={<Target className="w-6 h-6 text-purple-500" />}
           chartData={performanceData.slice(-7).map(d => ({ value: d.roi }))}
@@ -419,7 +371,7 @@ const AdminDashboard: React.FC = () => {
           <DataTable
             data={investments}
             columns={investmentColumns}
-            loading={loading.investments}
+            loading={false}
             searchable={true}
             searchPlaceholder="Search investments..."
             pageSize={10}
@@ -467,7 +419,7 @@ const AdminDashboard: React.FC = () => {
                   <p className="text-sm text-slate-400">Active accounts</p>
                 </div>
               </div>
-              <span className="text-2xl font-bold text-white">{realTimeMetrics.investorCount}</span>
+              <span className="text-2xl font-bold text-white">{dashboardMetrics.totalInvestors}</span>
             </div>
 
             <div className="flex items-center justify-between p-4 bg-slate-700 rounded-lg">
@@ -481,7 +433,7 @@ const AdminDashboard: React.FC = () => {
                 </div>
               </div>
               <span className="text-2xl font-bold text-white">
-                ${(realTimeMetrics.totalValue / Math.max(realTimeMetrics.investorCount, 1)).toLocaleString()}
+                ${Math.round(dashboardMetrics.totalValue / Math.max(dashboardMetrics.totalInvestors, 1)).toLocaleString()}
               </span>
             </div>
 
@@ -508,12 +460,9 @@ const AdminDashboard: React.FC = () => {
         {/* Investment Status */}
         <Card className="p-6">
           <h3 className="text-lg font-semibold text-white mb-4">Investment Status</h3>
-          <CustomBarChart
+          <CustomPieChart
             data={investmentStatusData}
-            xKey="name"
-            bars={[{ key: 'value', name: 'Count', color: '#EAB308' }]}
             height={250}
-            className="bg-transparent p-0"
           />
         </Card>
 
@@ -521,23 +470,25 @@ const AdminDashboard: React.FC = () => {
         <Card className="p-6">
           <h3 className="text-lg font-semibold text-white mb-4">Recent Activity</h3>
           <div className="space-y-3">
-            {activityLogs.length > 0 ? (
-              activityLogs.slice(0, 5).map((activity) => (
-                <div key={activity.id} className="flex items-start gap-3">
-                  <div className="w-8 h-8 bg-yellow-500/20 rounded-full flex items-center justify-center flex-shrink-0">
-                    <Activity className="w-4 h-4 text-yellow-500" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm text-white">{activity.description}</p>
-                    <p className="text-xs text-slate-400 mt-1">
-                      {new Date(activity.timestamp).toLocaleString()}
-                    </p>
-                  </div>
+            {[
+              { id: 1, description: 'New investment created: Meta Growth Fund Series A', timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString() },
+              { id: 2, description: 'Performance update for TikTok Global Expansion Fund', timestamp: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString() },
+              { id: 3, description: 'New investor joined Tesla Energy Storage Systems', timestamp: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString() },
+              { id: 4, description: 'Monthly report generated for Manhattan Commercial Real Estate', timestamp: new Date(Date.now() - 8 * 60 * 60 * 1000).toISOString() },
+              { id: 5, description: 'Investment milestone reached: $1M total value', timestamp: new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString() }
+            ].map((activity) => (
+              <div key={activity.id} className="flex items-start gap-3">
+                <div className="w-8 h-8 bg-yellow-500/20 rounded-full flex items-center justify-center flex-shrink-0">
+                  <Activity className="w-4 h-4 text-yellow-500" />
                 </div>
-              ))
-            ) : (
-              <p className="text-slate-400 text-sm">No recent activity</p>
-            )}
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm text-white">{activity.description}</p>
+                  <p className="text-xs text-slate-400 mt-1">
+                    {new Date(activity.timestamp).toLocaleString()}
+                  </p>
+                </div>
+              </div>
+            ))}
           </div>
         </Card>
       </div>

@@ -6,11 +6,20 @@ A comprehensive, production-ready investment management platform built with Reac
 
 ### Core Functionality
 - **User Authentication & Authorization** - JWT-based with role-based access control
+- **Admin-Controlled Investor Management** - Professional enterprise-level investor account creation
 - **Investment Portfolio Management** - Complete CRUD operations with real-time updates
 - **Company & Asset Tracking** - Multi-level company hierarchy with admin assignments
 - **Admin Dashboard** - Comprehensive management interface for superadmins
 - **Real-time Analytics** - Performance metrics and investment tracking
 - **Activity Logging** - Complete audit trail of user actions
+
+### 🆕 New: Admin-Controlled Investor Management
+- **No Self-Registration** - Investors can only be created by company administrators
+- **Professional Onboarding** - Multi-step investor creation with comprehensive validation
+- **Secure Password Setup** - Mandatory first-time password change with strength requirements
+- **Email Integration** - Welcome emails with temporary passwords and reset functionality
+- **Audit Trails** - Complete logging of all investor account operations
+- **Security Features** - Rate limiting, input validation, and GDPR compliance
 
 ### Production Features
 - **Security Hardened** - Rate limiting, CORS protection, input validation
@@ -157,6 +166,18 @@ GET    /api/analytics/admin/:companyId  # Admin analytics
 GET    /api/analytics/investor/:userId  # Investor analytics
 ```
 
+### 🆕 Investor Management (Admin-Controlled)
+```
+POST   /api/investor-management         # Create investor account (admin only)
+GET    /api/investor-management/:id     # Get investor details (admin only)
+GET    /api/investor-management/company/:companyId # List company investors (admin only)
+
+# Public investor authentication endpoints
+POST   /api/investor-auth/setup-password    # First-time password setup
+POST   /api/investor-auth/forgot-password   # Request password reset
+POST   /api/investor-auth/reset-password    # Reset password with token
+```
+
 ## 🧪 Testing
 
 ### Test Suites Available
@@ -286,11 +307,19 @@ NODE_ENV=development npm run backend:dev  # Verbose logging
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
+## 📚 Additional Documentation
+
+- **[Investor Management Documentation](INVESTOR_MANAGEMENT_DOCUMENTATION.md)** - Complete system overview and features
+- **[API Documentation](API_DOCUMENTATION.md)** - Detailed API reference with examples
+- **[Deployment Guide](DEPLOYMENT_GUIDE.md)** - Production deployment instructions
+- **[Production Deployment](PRODUCTION-DEPLOYMENT.md)** - Legacy production setup guide
+
 ## 🆘 Support
 
-- **Documentation**: See [PRODUCTION-DEPLOYMENT.md](./PRODUCTION-DEPLOYMENT.md)
+- **Documentation**: See documentation files above
 - **Issues**: Create an issue on GitHub
 - **Security**: Report security issues privately
+- **Email**: ihsansaifedwardion@gmail.com
 
 ---
 

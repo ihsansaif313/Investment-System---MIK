@@ -65,6 +65,11 @@ const subCompanySchema = new mongoose.Schema({
     required: true,
     trim: true
   },
+  category: {
+    type: String,
+    trim: true,
+    default: 'General'
+  },
   description: {
     type: String,
     trim: true
@@ -113,6 +118,7 @@ ownerCompanySchema.index({ contactEmail: 1 });
 subCompanySchema.index({ ownerCompanyId: 1 });
 subCompanySchema.index({ name: 1 });
 subCompanySchema.index({ industry: 1 });
+subCompanySchema.index({ category: 1 });
 subCompanySchema.index({ status: 1 });
 
 // Virtual for sub-company investments

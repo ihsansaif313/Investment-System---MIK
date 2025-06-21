@@ -5,6 +5,7 @@ import Button from '../../components/ui/Button';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import ErrorState from '../../components/ui/ErrorState';
 import EmptyState from '../../components/ui/EmptyState';
+import { CustomBarChart, CustomPieChart } from '../../components/ui/Charts';
 import { useData } from '../../contexts/DataContext';
 import { useAuth } from '../../contexts/AuthContext';
 const GlobalAnalytics: React.FC = () => {
@@ -162,18 +163,15 @@ const GlobalAnalytics: React.FC = () => {
               <h3 className="text-lg font-medium text-white mb-4">
                 Revenue Trends
               </h3>
-              <div className="h-64 flex items-end space-x-4">
-                {revenueData.map((item, index) => <div key={index} className="flex flex-col items-center flex-1">
-                    <div className="w-full bg-slate-700 rounded-t-sm relative" style={{
-                height: `${getBarHeight(item.value)}%`
-              }}>
-                      <div className="absolute inset-x-0 bottom-0 h-full bg-gradient-to-t from-yellow-500/80 to-yellow-500/20 rounded-t-sm"></div>
-                    </div>
-                    <div className="text-xs text-slate-400 mt-2">
-                      {item.month}
-                    </div>
-                  </div>)}
-              </div>
+              <CustomBarChart
+                data={revenueData}
+                xKey="month"
+                bars={[
+                  { key: 'value', name: 'Revenue', color: '#EAB308' }
+                ]}
+                height={256}
+                className="bg-transparent p-0"
+              />
               <div className="mt-4 text-center">
                 <div className="text-2xl font-bold text-white">
                   $
@@ -253,30 +251,21 @@ const GlobalAnalytics: React.FC = () => {
           <h3 className="text-lg font-medium text-white mb-4">
             Investment Distribution
           </h3>
-          <div className="space-y-4">
-            {portfolioDistribution.length > 0 ? (
-              portfolioDistribution.map((item, index) => (
-                <div key={index}>
-                  <div className="flex justify-between mb-1">
-                    <span className="text-sm text-slate-400">{item.assetType}</span>
-                    <span className="text-sm text-white">{item.percentage.toFixed(1)}%</span>
-                  </div>
-                  <div className="w-full h-2 bg-slate-700 rounded-full overflow-hidden">
-                    <div
-                      className={`h-full ${
-                        ['bg-blue-500', 'bg-green-500', 'bg-yellow-500', 'bg-purple-500', 'bg-red-500'][index % 5]
-                      }`}
-                      style={{ width: `${item.percentage}%` }}
-                    ></div>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <div className="text-center text-slate-400 py-8">
-                No investment data available
-              </div>
-            )}
-          </div>
+          {portfolioDistribution.length > 0 ? (
+            <CustomPieChart
+              data={portfolioDistribution.map((item, index) => ({
+                name: item.assetType,
+                value: item.value,
+                color: ['#3B82F6', '#10B981', '#EAB308', '#8B5CF6', '#EF4444'][index % 5]
+              }))}
+              height={200}
+              className="bg-transparent p-0"
+            />
+          ) : (
+            <div className="text-center text-slate-400 py-8">
+              No investment data available
+            </div>
+          )}
         </div>
         <div className="bg-slate-800 p-6 rounded-lg">
           <h3 className="text-lg font-medium text-white mb-4">

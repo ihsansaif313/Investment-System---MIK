@@ -36,6 +36,7 @@ interface AdminStats {
   pendingAdmins: number;
   assignedAdmins: number;
   unassignedAdmins: number;
+  totalAssignments?: number;
 }
 
 interface FilterOptions {
@@ -69,7 +70,8 @@ const AdminAssignments: React.FC = () => {
     activeAdmins: 0,
     pendingAdmins: 0,
     assignedAdmins: 0,
-    unassignedAdmins: 0
+    unassignedAdmins: 0,
+    totalAssignments: 0
   });
   const [adminHistory, setAdminHistory] = useState<AdminHistory[]>([]);
   const [loading, setLoading] = useState(true);
@@ -128,15 +130,21 @@ const AdminAssignments: React.FC = () => {
       // Calculate stats
       const totalAdmins = (adminsRes || []).length + (pendingRes || []).length;
       const activeAdmins = (adminsRes || []).length;
-      const assignedAdmins = (assignmentsRes || []).length;
+
+      // Count unique admins who have assignments (not total assignments)
+      const uniqueAssignedAdminIds = new Set(
+        (assignmentsRes || []).map(assignment => assignment.userId?.id || assignment.userId?._id)
+      );
+      const assignedAdmins = uniqueAssignedAdminIds.size;
       const unassignedAdmins = activeAdmins - assignedAdmins;
 
       setAdminStats({
         totalAdmins,
         activeAdmins,
         pendingAdmins: (pendingRes || []).length,
-        assignedAdmins,
-        unassignedAdmins
+        assignedAdmins, // Number of unique admins with assignments
+        unassignedAdmins, // Number of active admins without any assignments
+        totalAssignments: (assignmentsRes || []).length // Total number of assignments
       });
     } catch (error) {
       console.error('Failed to fetch data:', error);
@@ -459,8 +467,13 @@ const AdminAssignments: React.FC = () => {
           <div className="flex items-center">
             <BuildingIcon className="h-6 w-6 sm:h-8 sm:w-8 text-purple-500 flex-shrink-0" />
             <div className="ml-2 sm:ml-3 min-w-0">
-              <p className="text-xs sm:text-sm font-medium text-slate-400 truncate">Assigned</p>
+              <p className="text-xs sm:text-sm font-medium text-slate-400 truncate">Assigned Admins</p>
               <p className="text-lg sm:text-2xl font-bold text-white">{adminStats.assignedAdmins}</p>
+              {adminStats.totalAssignments && adminStats.totalAssignments > adminStats.assignedAdmins && (
+                <p className="text-xs text-slate-500">
+                  {adminStats.totalAssignments} total assignments
+                </p>
+              )}
             </div>
           </div>
         </div>

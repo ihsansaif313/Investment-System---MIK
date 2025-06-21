@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   LineChart,
   Line,
@@ -17,12 +17,13 @@ import {
   ResponsiveContainer,
   TooltipProps,
 } from 'recharts';
+import { TrendingUp, BarChart3, PieChart as PieChartIcon } from 'lucide-react';
 
 // Custom Tooltip Component
 const CustomTooltip: React.FC<TooltipProps<any, any>> = ({ active, payload, label }) => {
   if (active && payload && payload.length) {
     return (
-      <div className="bg-slate-800 border border-slate-600 rounded-lg p-3 shadow-lg">
+      <div className="bg-slate-900 border border-slate-600 rounded-lg p-3 shadow-lg">
         <p className="text-slate-300 text-sm mb-2">{label}</p>
         {payload.map((entry, index) => (
           <p key={index} className="text-sm" style={{ color: entry.color }}>
@@ -51,7 +52,7 @@ interface LineChartProps {
   className?: string;
 }
 
-export const CustomLineChart: React.FC<LineChartProps> = ({
+export const CustomLineChart: React.FC<LineChartProps> = React.memo(({
   data,
   xKey,
   lines,
@@ -60,8 +61,11 @@ export const CustomLineChart: React.FC<LineChartProps> = ({
   showLegend = true,
   className = '',
 }) => {
+  // Memoize processed data to prevent unnecessary recalculations
+  const processedData = useMemo(() => data || [], [data]);
+
   // Handle empty data state
-  if (!data || data.length === 0) {
+  if (!processedData || processedData.length === 0) {
     return (
       <div className={`bg-slate-800 rounded-lg p-4 ${className}`}>
         <div
@@ -80,7 +84,7 @@ export const CustomLineChart: React.FC<LineChartProps> = ({
   return (
     <div className={`bg-slate-800 rounded-lg p-4 ${className}`}>
       <ResponsiveContainer width="100%" height={height}>
-        <LineChart data={data}>
+        <LineChart data={processedData}>
           {showGrid && <CartesianGrid strokeDasharray="3 3" stroke="#374151" />}
           <XAxis
             dataKey={xKey}
@@ -114,7 +118,7 @@ export const CustomLineChart: React.FC<LineChartProps> = ({
       </ResponsiveContainer>
     </div>
   );
-};
+});
 
 // Area Chart Component
 interface AreaChartProps {
@@ -132,7 +136,7 @@ interface AreaChartProps {
   className?: string;
 }
 
-export const CustomAreaChart: React.FC<AreaChartProps> = ({
+export const CustomAreaChart: React.FC<AreaChartProps> = React.memo(({
   data,
   xKey,
   areas,
@@ -141,8 +145,11 @@ export const CustomAreaChart: React.FC<AreaChartProps> = ({
   showLegend = true,
   className = '',
 }) => {
+  // Memoize processed data to prevent unnecessary recalculations
+  const processedData = useMemo(() => data || [], [data]);
+
   // Handle empty data state
-  if (!data || data.length === 0) {
+  if (!processedData || processedData.length === 0) {
     return (
       <div className={`bg-slate-800 rounded-lg p-4 ${className}`}>
         <div
@@ -161,7 +168,7 @@ export const CustomAreaChart: React.FC<AreaChartProps> = ({
   return (
     <div className={`bg-slate-800 rounded-lg p-4 ${className}`}>
       <ResponsiveContainer width="100%" height={height}>
-        <AreaChart data={data}>
+        <AreaChart data={processedData}>
           {showGrid && <CartesianGrid strokeDasharray="3 3" stroke="#374151" />}
           <XAxis
             dataKey={xKey}
@@ -195,7 +202,7 @@ export const CustomAreaChart: React.FC<AreaChartProps> = ({
       </ResponsiveContainer>
     </div>
   );
-};
+});
 
 // Bar Chart Component
 interface BarChartProps {
@@ -212,7 +219,7 @@ interface BarChartProps {
   className?: string;
 }
 
-export const CustomBarChart: React.FC<BarChartProps> = ({
+export const CustomBarChart: React.FC<BarChartProps> = React.memo(({
   data,
   xKey,
   bars,
@@ -230,7 +237,7 @@ export const CustomBarChart: React.FC<BarChartProps> = ({
           style={{ height: `${height}px` }}
         >
           <div className="text-center">
-            <PieChart className="w-12 h-12 mx-auto mb-2 text-slate-500" />
+            <PieChartIcon className="w-12 h-12 mx-auto mb-2 text-slate-500" />
             <p className="text-sm">No data available</p>
           </div>
         </div>
@@ -272,7 +279,7 @@ export const CustomBarChart: React.FC<BarChartProps> = ({
       </ResponsiveContainer>
     </div>
   );
-};
+});
 
 // Pie Chart Component
 interface PieChartProps {
@@ -288,7 +295,7 @@ interface PieChartProps {
   className?: string;
 }
 
-export const CustomPieChart: React.FC<PieChartProps> = ({
+export const CustomPieChart: React.FC<PieChartProps> = React.memo(({
   data,
   height = 300,
   showLegend = true,
@@ -305,7 +312,7 @@ export const CustomPieChart: React.FC<PieChartProps> = ({
           style={{ height: `${height}px` }}
         >
           <div className="text-center">
-            <PieChart className="w-12 h-12 mx-auto mb-2 text-slate-500" />
+            <PieChartIcon className="w-12 h-12 mx-auto mb-2 text-slate-500" />
             <p className="text-sm">No data available</p>
           </div>
         </div>
@@ -336,12 +343,55 @@ export const CustomPieChart: React.FC<PieChartProps> = ({
       </ResponsiveContainer>
     </div>
   );
-};
+});
 
 // Donut Chart Component (Pie chart with inner radius)
-export const CustomDonutChart: React.FC<PieChartProps> = (props) => {
-  return <CustomPieChart {...props} innerRadius={60} />;
-};
+export const CustomDonutChart: React.FC<PieChartProps> = React.memo(({
+  data,
+  height = 300,
+  showLegend = true,
+  className = ''
+}) => {
+  if (!data || data.length === 0) {
+    return (
+      <div className={`bg-slate-800 rounded-lg p-4 ${className}`}>
+        <div
+          className="flex items-center justify-center text-slate-400"
+          style={{ height: `${height}px` }}
+        >
+          <div className="text-center">
+            <PieChartIcon className="w-12 h-12 mx-auto mb-2 text-slate-500" />
+            <p className="text-sm">No data available</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className={`bg-slate-800 rounded-lg p-4 ${className}`}>
+      <ResponsiveContainer width="100%" height={height}>
+        <PieChart>
+          <Pie
+            data={data}
+            cx="50%"
+            cy="50%"
+            innerRadius={60}
+            outerRadius={Math.min(height * 0.35, 120)}
+            paddingAngle={2}
+            dataKey="value"
+          >
+            {data.map((entry, index) => (
+              <Cell key={`cell-${index}`} fill={entry.color} />
+            ))}
+          </Pie>
+          <Tooltip content={<CustomTooltip />} />
+          {showLegend && <Legend />}
+        </PieChart>
+      </ResponsiveContainer>
+    </div>
+  );
+});
 
 // Metric Card with Mini Chart
 interface MetricCardProps {
@@ -358,7 +408,7 @@ interface MetricCardProps {
   className?: string;
 }
 
-export const MetricCard: React.FC<MetricCardProps> = ({
+export const MetricCard: React.FC<MetricCardProps> = React.memo(({
   title,
   value,
   change,
@@ -453,4 +503,4 @@ export const MetricCard: React.FC<MetricCardProps> = ({
       )}
     </div>
   );
-};
+});

@@ -16,7 +16,7 @@ const Header: React.FC<HeaderProps> = ({
 }) => {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
 
-  return <header className="bg-slate-800 border-b border-slate-700 py-3 sm:py-4 px-4 sm:px-6">
+  return <header className="bg-gradient-to-r from-slate-800 to-slate-700 border-b border-slate-600/50 backdrop-blur-sm py-4 sm:py-5 px-4 sm:px-6 shadow-lg">
       <div className="flex items-center justify-between">
         {/* Left side - Mobile menu button + Title */}
         <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
@@ -31,8 +31,8 @@ const Header: React.FC<HeaderProps> = ({
 
           {/* Title */}
           <div className="min-w-0 flex-1">
-            <h1 className="text-lg sm:text-xl lg:text-2xl font-bold text-white truncate">{title}</h1>
-            {subtitle && <p className="text-slate-400 mt-0.5 sm:mt-1 text-xs sm:text-sm truncate">{subtitle}</p>}
+            <h1 className="text-lg sm:text-xl lg:text-2xl font-bold bg-gradient-to-r from-white to-slate-200 bg-clip-text text-transparent truncate">{title}</h1>
+            {subtitle && <p className="text-slate-300 mt-0.5 sm:mt-1 text-xs sm:text-sm truncate font-medium">{subtitle}</p>}
           </div>
         </div>
 
@@ -43,7 +43,7 @@ const Header: React.FC<HeaderProps> = ({
             <input
               type="text"
               placeholder="Search..."
-              className="w-48 lg:w-64 bg-slate-700 border border-slate-600 rounded-md py-2 pl-9 sm:pl-10 pr-3 sm:pr-4 text-sm sm:text-base text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-yellow-500 transition-all"
+              className="w-48 lg:w-64 bg-slate-700/80 backdrop-blur-sm border border-slate-600/50 rounded-lg py-2.5 pl-9 sm:pl-10 pr-3 sm:pr-4 text-sm sm:text-base text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-yellow-500/50 focus:border-yellow-500/50 transition-all duration-200 shadow-sm"
             />
             <SearchIcon className="absolute left-2.5 sm:left-3 top-2.5 h-4 w-4 sm:h-5 sm:w-5 text-slate-400" />
           </div>

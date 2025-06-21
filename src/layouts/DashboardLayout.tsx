@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import Sidebar from '../components/layout/Sidebar';
 import Header from '../components/layout/Header';
+import DemoBanner from '../components/demo/DemoBanner';
+import DeveloperCredits from '../components/layout/DeveloperCredits';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -25,6 +27,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
 
   return (
     <div className="flex h-screen bg-slate-900">
+      <DemoBanner />
       <Sidebar
         isOpen={isMobileMenuOpen}
         onClose={handleMenuClose}
@@ -36,8 +39,9 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
           onMenuToggle={handleMenuToggle}
           isMobileMenuOpen={isMobileMenuOpen}
         />
-        <main className="flex-1 overflow-y-auto p-3 sm:p-4 lg:p-6">{children}</main>
+        <main className="flex-1 overflow-y-auto p-3 sm:p-4 lg:p-6 pb-16">{children}</main>
       </div>
+      <DeveloperCredits />
     </div>
   );
 };

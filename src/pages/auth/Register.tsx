@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { 
-  User, 
-  Mail, 
-  Lock, 
-  Phone, 
-  MapPin, 
+import {
+  User,
+  Mail,
+  Lock,
+  Phone,
+  MapPin,
   Calendar,
   Eye,
   EyeOff,
@@ -19,6 +19,7 @@ import Card from '../../components/ui/Card';
 import { useSuccessToast, useErrorToast } from '../../components/ui/Toast';
 import { ROLE_OPTIONS } from '../../constants/formOptions';
 import apiService from '../../services/api';
+import DeveloperCredits from '../../components/layout/DeveloperCredits';
 
 interface RegisterForm {
   firstName: string;
@@ -29,7 +30,7 @@ interface RegisterForm {
   phone: string;
   dateOfBirth: string;
   address: string;
-  role: 'investor' | 'admin' | 'superadmin';
+  role: 'admin' | 'superadmin';
 }
 
 const Register: React.FC = () => {
@@ -46,7 +47,7 @@ const Register: React.FC = () => {
     phone: '',
     dateOfBirth: '',
     address: '',
-    role: 'investor' // Default to investor, but user can change this
+    role: 'admin' // Default to admin (investor registration disabled)
   });
   
   const [showPassword, setShowPassword] = useState(false);
@@ -380,10 +381,10 @@ const Register: React.FC = () => {
               <div className="flex items-start gap-2 sm:gap-3">
                 <Shield className="w-4 h-4 sm:w-5 sm:h-5 text-blue-400 mt-0.5 flex-shrink-0" />
                 <div className="min-w-0 flex-1">
-                  <h4 className="text-blue-400 font-medium mb-1 text-sm sm:text-base">Security & Privacy</h4>
+                  <h4 className="text-blue-400 font-medium mb-1 text-sm sm:text-base">Admin Registration</h4>
                   <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
-                    Your account will be secured with industry-standard encryption.
-                    You'll receive an email verification link to activate your account.
+                    Admin accounts require approval from a superadmin. You'll receive an email verification link to activate your account.
+                    Investor accounts are created by company admins only.
                   </p>
                 </div>
               </div>
@@ -417,6 +418,9 @@ const Register: React.FC = () => {
           </div>
         </Card>
       </div>
+
+      {/* Developer Credits */}
+      <DeveloperCredits />
     </div>
   );
 };

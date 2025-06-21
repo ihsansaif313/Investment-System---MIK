@@ -266,6 +266,23 @@ interface DataContextType {
   createInvestment: (data: CreateInvestmentForm) => Promise<InvestmentWithDetails>;
   updateInvestment: (id: string, data: Partial<InvestmentWithDetails>) => Promise<void>;
   deleteInvestment: (id: string) => Promise<void>;
+
+  // Daily performance management
+  addDailyPerformance: (investmentId: string, performanceData: {
+    marketValue: number;
+    notes?: string;
+    marketConditions?: string;
+    date?: string;
+  }) => Promise<any>;
+  getPerformanceHistory: (investmentId: string, params?: {
+    days?: number;
+    page?: number;
+    limit?: number;
+  }) => Promise<{
+    performance: any[];
+    summary: any;
+    pagination: any;
+  }>;
   
   // Investor investment management
   fetchInvestorInvestments: (userId?: string, forceRefresh?: boolean) => Promise<void>;
@@ -482,6 +499,39 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       'investments'
     );
     dispatch({ type: 'REMOVE_INVESTMENT', payload: id });
+  };
+
+  // Daily performance management functions
+  const addDailyPerformance = async (investmentId: string, performanceData: {
+    marketValue: number;
+    notes?: string;
+    marketConditions?: string;
+    date?: string;
+  }) => {
+    const result = await handleApiCall(
+      () => apiService.addDailyPerformance(investmentId, performanceData),
+      'investments',
+      'investments'
+    );
+
+    if (result) {
+      // Refresh investments to get updated performance data
+      await fetchInvestments(undefined, true);
+    }
+
+    return result;
+  };
+
+  const getPerformanceHistory = async (investmentId: string, params?: {
+    days?: number;
+    page?: number;
+    limit?: number;
+  }) => {
+    return await handleApiCall(
+      () => apiService.getPerformanceHistory(investmentId, params),
+      'investments',
+      'investments'
+    );
   };
 
   // Investor investment management functions
@@ -888,6 +938,8 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     createInvestment,
     updateInvestment,
     deleteInvestment,
+    addDailyPerformance,
+    getPerformanceHistory,
     fetchInvestorInvestments,
     createInvestorInvestment,
     withdrawInvestment,

@@ -33,20 +33,59 @@ export const CompanySelectionProvider: React.FC<CompanySelectionProviderProps> =
       return;
     }
 
-    // If admin is pending approval, don't fetch companies
-    if (user.role.status === 'pending') {
+    // Check if this is a demo user
+    const isDemoUser = (user as any).isDemo;
+
+    // If admin is pending approval, don't fetch companies (unless demo user)
+    if (!isDemoUser && user.role.status === 'pending') {
       setAssignedCompanies([]);
       setSelectedCompany(null);
       return;
     }
 
+    // First try to use company assignments from login response
+    if (user.companyAssignments && user.companyAssignments.length > 0) {
+      console.log('[CompanySelection] Using company assignments from login response');
+
+      const companies = user.companyAssignments
+        .filter(assignment => assignment.status === 'active')
+        .map(assignment => ({
+          id: assignment.companyId,
+          name: assignment.companyName,
+          industry: assignment.companyIndustry,
+          description: assignment.companyDescription,
+          logo: assignment.companyLogo,
+          // Add other required SubCompany fields with defaults
+          owner_company_id: '',
+          category: '',
+          address: '',
+          contact_email: '',
+          phone: '',
+          established_date: new Date(),
+          status: 'active' as const,
+          created_at: new Date(),
+          updated_at: new Date()
+        }));
+
+      setAssignedCompanies(companies);
+
+      // Auto-select first company if none selected and companies available
+      if (companies.length > 0 && !selectedCompany) {
+        setSelectedCompany(companies[0]);
+        localStorage.setItem('selectedCompanyId', companies[0].id);
+      }
+      return;
+    }
+
+    // Fallback to API call if no assignments in login response
     try {
       setLoading(true);
       setError(null);
-      
+
+      console.log('[CompanySelection] Fetching company assignments from API');
       const response = await apiService.get(`/company-assignments/user/${user.id}`);
       const assignments: CompanyAssignment[] = response.data || [];
-      
+
       // Extract companies from assignments
       const companies = assignments
         .filter(assignment => assignment.status === 'active')
@@ -58,7 +97,6 @@ export const CompanySelectionProvider: React.FC<CompanySelectionProviderProps> =
       // Auto-select first company if none selected and companies available
       if (companies.length > 0 && !selectedCompany) {
         setSelectedCompany(companies[0]);
-        // Store selection in localStorage for persistence
         localStorage.setItem('selectedCompanyId', companies[0].id);
       } else if (companies.length === 0) {
         setSelectedCompany(null);
@@ -115,7 +153,12 @@ export const CompanySelectionProvider: React.FC<CompanySelectionProviderProps> =
     };
   }, [fetchAssignedCompanies]);
 
-  const hasCompanyAccess = user?.role.id === 'admin' && user.role.status === 'active' && assignedCompanies.length > 0;
+  // Check if this is a demo user for company access
+  const isDemoUser = user && (user as any).isDemo;
+
+  const hasCompanyAccess = user?.role.id === 'admin' &&
+    (isDemoUser || user.role.status === 'active') &&
+    (assignedCompanies.length > 0 || (user.companyAssignments && user.companyAssignments.length > 0));
 
   const value: CompanySelectionContextType = {
     assignedCompanies,

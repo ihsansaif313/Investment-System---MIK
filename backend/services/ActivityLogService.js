@@ -6,7 +6,33 @@ import logger from '../utils/logger.js';
  * Centralized service for logging user activities throughout the system
  */
 class ActivityLogService {
-  
+
+  /**
+   * Generic log method for any activity
+   */
+  static async log(logData) {
+    try {
+      const log = new ActivityLog({
+        userId: logData.userId,
+        action: logData.action,
+        entity: logData.entityType || 'unknown',
+        entityId: logData.entityId,
+        details: {
+          description: logData.description,
+          ...logData.metadata
+        },
+        ipAddress: logData.metadata?.ip,
+        userAgent: logData.metadata?.userAgent,
+        severity: logData.severity || 'info'
+      });
+      await log.save();
+      return log;
+    } catch (error) {
+      logger.error('Failed to log activity', { error: error.message, logData });
+      return null;
+    }
+  }
+
   /**
    * Log user authentication activities
    */

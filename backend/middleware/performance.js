@@ -79,6 +79,7 @@ export const cacheMiddleware = (ttl = CACHE_TTL) => {
       }
 
       res.set('X-Cache', 'MISS');
+      res._jsonOverridden = true;
       return originalJson.call(this, data);
     };
 
@@ -91,25 +92,32 @@ export const performanceMonitoring = (req, res, next) => {
   const startTime = process.hrtime.bigint();
   const startMemory = process.memoryUsage();
 
-  res.on('finish', () => {
+  // Store original json method to add headers before response
+  const originalJson = res.json;
+
+  res.json = function(data) {
     const endTime = process.hrtime.bigint();
     const endMemory = process.memoryUsage();
-    
+
     const responseTime = Number(endTime - startTime) / 1000000; // Convert to milliseconds
     const memoryDelta = endMemory.heapUsed - startMemory.heapUsed;
 
-    // Add performance headers
-    res.set({
-      'X-Response-Time': `${responseTime.toFixed(2)}ms`,
-      'X-Memory-Usage': `${Math.round(endMemory.heapUsed / 1024 / 1024)}MB`,
-      'X-Memory-Delta': `${Math.round(memoryDelta / 1024)}KB`
-    });
+    // Add performance headers before sending response
+    if (!res.headersSent) {
+      res.set({
+        'X-Response-Time': `${responseTime.toFixed(2)}ms`,
+        'X-Memory-Usage': `${Math.round(endMemory.heapUsed / 1024 / 1024)}MB`,
+        'X-Memory-Delta': `${Math.round(memoryDelta / 1024)}KB`
+      });
+    }
 
     // Log slow requests in production
     if (process.env.NODE_ENV === 'production' && responseTime > 1000) {
       console.warn(`Slow request detected: ${req.method} ${req.path} - ${responseTime.toFixed(2)}ms`);
     }
-  });
+
+    return originalJson.call(this, data);
+  };
 
   next();
 };
@@ -136,21 +144,25 @@ export const optimizeQueries = (req, res, next) => {
 
 // Response optimization middleware
 export const optimizeResponse = (req, res, next) => {
-  const originalJson = res.json;
+  // Store the current json method (might already be overridden by performance monitoring)
+  const currentJson = res.json;
 
   res.json = function(data) {
-    // Add performance metadata
-    const responseData = {
-      ...data,
-      meta: {
-        ...data.meta,
-        timestamp: new Date().toISOString(),
-        responseTime: res.get('X-Response-Time'),
-        cached: res.get('X-Cache') === 'HIT'
-      }
-    };
-
-    return originalJson.call(this, responseData);
+    // Add performance metadata only if data is an object
+    if (data && typeof data === 'object' && !Array.isArray(data)) {
+      const responseData = {
+        ...data,
+        meta: {
+          ...data.meta,
+          timestamp: new Date().toISOString(),
+          responseTime: res.get('X-Response-Time'),
+          cached: res.get('X-Cache') === 'HIT'
+        }
+      };
+      return currentJson.call(this, responseData);
+    } else {
+      return currentJson.call(this, data);
+    }
   };
 
   next();

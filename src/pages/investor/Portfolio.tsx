@@ -3,6 +3,7 @@ import { PieChartIcon, TrendingUpIcon, TrendingDownIcon, DollarSignIcon, Percent
 import DashboardLayout from '../../layouts/DashboardLayout';
 import Button from '../../components/ui/Button';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
+import { CustomAreaChart, CustomPieChart } from '../../components/ui/Charts';
 import { useData } from '../../contexts/DataContext';
 import { useAuth } from '../../contexts/AuthContext';
 const Portfolio: React.FC = () => {
@@ -161,17 +162,22 @@ const Portfolio: React.FC = () => {
               </Button>
             </div>
           </div>
-          <div className="h-64 flex items-end space-x-2">
-            {/* Dynamic chart visualization based on analytics data */}
-            {chartData.map((height, index) => (
-              <div key={index} className="flex-1 h-full flex items-end">
-                <div
-                  className="w-full bg-gradient-to-t from-yellow-500/80 to-yellow-500/20 rounded-t-sm"
-                  style={{ height: `${height}%` }}
-                ></div>
-              </div>
-            ))}
-          </div>
+          {performanceData.length > 0 ? (
+            <CustomAreaChart
+              data={performanceData}
+              xKey="name"
+              areas={[
+                { key: 'invested', name: 'Invested', color: '#3B82F6', fillOpacity: 0.3 },
+                { key: 'value', name: 'Current Value', color: '#EAB308', fillOpacity: 0.3 }
+              ]}
+              height={256}
+              className="bg-transparent p-0"
+            />
+          ) : (
+            <div className="h-64 flex items-center justify-center text-slate-400">
+              No portfolio performance data available
+            </div>
+          )}
         </div>
         <div className="bg-slate-800 p-6 rounded-lg">
           <div className="flex items-center mb-6">
@@ -180,29 +186,24 @@ const Portfolio: React.FC = () => {
               Portfolio Breakdown
             </h3>
           </div>
-          <div className="space-y-4">
-            {portfolioBreakdown.length > 0 ? (
-              portfolioBreakdown.map((item, index) => (
-                <div key={index}>
-                  <div className="flex justify-between mb-1">
-                    <span className="text-sm text-slate-400">{item.category}</span>
-                    <span className="text-sm text-white">{item.percentage.toFixed(1)}%</span>
-                  </div>
-                  <div className="w-full h-2 bg-slate-700 rounded-full overflow-hidden">
-                    <div
-                      className={`h-full ${item.color.split(' ')[0]}`}
-                      style={{ width: `${item.percentage}%` }}
-                    ></div>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <div className="text-center text-slate-400 py-8">
+          {portfolioBreakdown.length > 0 ? (
+            <CustomPieChart
+              data={portfolioBreakdown.map(item => ({
+                name: item.category,
+                value: item.value,
+                color: ['#EAB308', '#10B981', '#3B82F6', '#8B5CF6', '#F59E0B'][portfolioBreakdown.indexOf(item) % 5]
+              }))}
+              height={250}
+              className="bg-transparent p-0"
+            />
+          ) : (
+            <div className="h-64 flex items-center justify-center text-slate-400">
+              <div className="text-center">
                 <p>No portfolio data available</p>
                 <p className="text-sm mt-2">Start investing to see your portfolio breakdown</p>
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       </div>
       {/* Investments List */}

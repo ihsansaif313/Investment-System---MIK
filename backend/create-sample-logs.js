@@ -1,3 +1,14 @@
+/**
+ * SAMPLE LOGS CREATION SCRIPT - DISABLED FOR PRODUCTION USE
+ * This file has been disabled to ensure clean production deployment
+ */
+
+console.error('❌ SAMPLE LOGS CREATION DISABLED');
+console.error('❌ This file contains test/dummy data and is disabled for production use');
+console.error('💡 Activity logs will be generated naturally through real user actions');
+process.exit(1);
+
+/*
 import mongoose from 'mongoose';
 import { config } from './config/environment.js';
 import { ActivityLog, User } from './models/index.js';
@@ -167,3 +178,4 @@ main().catch(error => {
   console.error('❌ Script error:', error);
   process.exit(1);
 });
+*/

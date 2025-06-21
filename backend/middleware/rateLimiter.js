@@ -46,10 +46,11 @@ export const rateLimiter = (options = {}) => {
 
 /**
  * Strict rate limiter for authentication endpoints
+ * Relaxed for development environment
  */
 export const authRateLimiter = rateLimiter({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5, // limit each IP to 5 requests per windowMs
+  max: process.env.NODE_ENV === 'development' ? 50 : 5, // Higher limit for development
   message: {
     success: false,
     error: {
@@ -61,10 +62,11 @@ export const authRateLimiter = rateLimiter({
 
 /**
  * Registration rate limiter
+ * Relaxed for development environment
  */
 export const registerRateLimiter = rateLimiter({
   windowMs: 60 * 60 * 1000, // 1 hour
-  max: 3, // limit each IP to 3 registration attempts per hour
+  max: process.env.NODE_ENV === 'development' ? 20 : 3, // Higher limit for development
   message: {
     success: false,
     error: {

@@ -10,9 +10,13 @@ import investmentRoutes from './investments.js';
 import companyRoutes from './companies.js';
 import companyAssignmentRoutes from './company-assignments.js';
 import adminManagementRoutes from './admin-management.js';
+import investorManagementRoutes from './investor-management.js';
+import investorAuthRoutes from './investor-auth.js';
+import investorInvestmentRoutes from './investor-investments.js';
 import assetRoutes from './assets.js';
 import analyticsRoutes from './analytics.js';
 import activityLogsRoutes from './activity-logs.js';
+import marketDataRoutes from './market-data.js';
 import { authenticate } from '../middleware/auth.js';
 import { requestLogger } from '../utils/logger.js';
 
@@ -54,6 +58,7 @@ router.get('/status', (req, res) => {
 
 // Public routes (no authentication required)
 router.use('/auth', authRoutes);
+router.use('/investor-auth', investorAuthRoutes);
 
 // Protected routes (authentication required)
 router.use('/users', authenticate, userRoutes);
@@ -61,9 +66,12 @@ router.use('/investments', authenticate, investmentRoutes);
 router.use('/companies', authenticate, companyRoutes);
 router.use('/company-assignments', authenticate, companyAssignmentRoutes);
 router.use('/admin-management', authenticate, adminManagementRoutes);
+router.use('/investor-management', authenticate, investorManagementRoutes);
+router.use('/investor-investments', authenticate, investorInvestmentRoutes);
 router.use('/assets', authenticate, assetRoutes);
 router.use('/analytics', authenticate, analyticsRoutes);
 router.use('/activity-logs', authenticate, activityLogsRoutes);
+router.use('/market-data', authenticate, marketDataRoutes);
 
 // API documentation endpoint - Only available in development
 if (process.env.NODE_ENV !== 'production') {

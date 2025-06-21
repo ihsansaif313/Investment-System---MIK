@@ -1,0 +1,114 @@
+name: Vercel Deployment Verification
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  build-and-verify:
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        node-version: [18.x, 20.x]
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Run build verification
+      run: npm run verify:build
+      
+    - name: Build for production
+      run: npm run build
+      env:
+        NODE_ENV: production
+        VITE_DEMO_MODE: true
+        VITE_DEMO_BANNER_ENABLED: true
+        VITE_USE_MOCK_API: true
+        
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: dist-files-${{ matrix.node-version }}
+        path: dist/
+        retention-days: 1
+        
+    - name: Check build size
+      run: |
+        echo "Build size information:"
+        du -sh dist/
+        echo "File count:"
+        find dist/ -type f | wc -l
+        echo "Largest files:"
+        find dist/ -type f -exec ls -lh {} + | sort -k5 -hr | head -10
+
+  demo-verification:
+    runs-on: ubuntu-latest
+    needs: build-and-verify
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20.x'
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Verify demo data integrity
+      run: |
+        echo "Checking demo authentication service..."
+        grep -q "miksupadmin@gmail.com" src/services/demoAuth.ts
+        grep -q "mikadmin@gmail.com" src/services/demoAuth.ts
+        grep -q "mikinvestor@gmail.com" src/services/demoAuth.ts
+        echo "✅ All demo accounts found"
+        
+        echo "Checking demo data..."
+        grep -q "demoInvestments" src/data/demoData.ts
+        grep -q "demoCompanies" src/data/demoData.ts
+        grep -q "demoUsers" src/data/demoData.ts
+        echo "✅ All demo data exports found"
+        
+        echo "Checking developer credits..."
+        grep -q "Eskillvisor" src/components/layout/DeveloperCredits.tsx
+        grep -q "MIK Services" src/components/layout/DeveloperCredits.tsx
+        echo "✅ Developer credits verified"
+
+  deployment-ready:
+    runs-on: ubuntu-latest
+    needs: [build-and-verify, demo-verification]
+    
+    steps:
+    - name: Deployment Ready Notification
+      run: |
+        echo "🚀 Investment Management System is ready for Vercel deployment!"
+        echo "✅ Build verification passed"
+        echo "✅ Demo data verification passed"
+        echo "✅ All demo accounts configured"
+        echo "✅ Developer credits included"
+        echo ""
+        echo "Demo Accounts:"
+        echo "- Super Admin: miksupadmin@gmail.com / Mik123!"
+        echo "- Admin: mikadmin@gmail.com / Mik123!"
+        echo "- Investor: mikinvestor@gmail.com / Mik123!"
+        echo ""
+        echo "Next steps:"
+        echo "1. Connect GitHub repository to Vercel"
+        echo "2. Configure environment variables in Vercel dashboard"
+        echo "3. Deploy and test all demo features"

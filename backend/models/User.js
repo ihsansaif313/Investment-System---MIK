@@ -104,7 +104,46 @@ const userSchema = new mongoose.Schema({
       type: Boolean,
       default: true
     }
-  }]
+  }],
+  // Investor-specific fields
+  cnic: {
+    type: String,
+    trim: true,
+    sparse: true // Allow multiple null values but unique non-null values
+  },
+  accountStatus: {
+    type: String,
+    enum: ['pending_setup', 'active', 'suspended', 'inactive'],
+    default: 'active'
+  },
+  isFirstLogin: {
+    type: Boolean,
+    default: false,
+    description: 'Indicates if user needs to set permanent password on first login'
+  },
+  investmentPreferences: {
+    riskTolerance: {
+      type: String,
+      enum: ['low', 'medium', 'high'],
+      default: 'medium'
+    },
+    preferredSectors: [String],
+    investmentGoals: [String],
+    timeHorizon: {
+      type: String,
+      enum: ['short', 'medium', 'long'],
+      default: 'medium'
+    }
+  },
+  initialInvestmentAmount: {
+    type: Number,
+    min: 0
+  },
+  createdBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    description: 'Admin who created this investor account'
+  }
   // Note: Role is now stored in separate Role collection
   // Embedded role field removed to avoid confusion
 }, {

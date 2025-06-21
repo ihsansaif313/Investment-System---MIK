@@ -1,16 +1,19 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { UserIcon, LockIcon, Mail, AlertCircle } from 'lucide-react';
+import { UserIcon, LockIcon, Mail, AlertCircle, Zap } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import Card from '../../components/ui/Card';
 import Input from '../../components/ui/Input';
 import Button from '../../components/ui/Button';
 import { useErrorToast } from '../../components/ui/Toast';
+import DemoLoginPanel from '../../components/demo/DemoLoginPanel';
+import DeveloperCredits from '../../components/layout/DeveloperCredits';
 const Login: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
   const [showEmailVerificationError, setShowEmailVerificationError] = useState(false);
+  const [showDemoPanel, setShowDemoPanel] = useState(false);
   const [errors, setErrors] = useState<{
     email?: string;
     password?: string;
@@ -208,8 +211,30 @@ const Login: React.FC = () => {
           </p>
         </div>
 
+        {/* Demo Access Button */}
+        <div className="text-center mt-4">
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => setShowDemoPanel(!showDemoPanel)}
+            className="flex items-center gap-2 mx-auto"
+          >
+            <Zap size={14} />
+            {showDemoPanel ? 'Hide' : 'Show'} Demo Accounts
+          </Button>
+        </div>
+
+        {/* Demo Login Panel */}
+        {showDemoPanel && (
+          <div className="mt-6">
+            <DemoLoginPanel onClose={() => setShowDemoPanel(false)} />
+          </div>
+        )}
 
       </div>
+
+      {/* Developer Credits */}
+      <DeveloperCredits />
     </div>;
 };
 export default Login;

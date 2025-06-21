@@ -8,6 +8,7 @@ import DashboardLayout from '../../layouts/DashboardLayout';
 import Button from '../../components/ui/Button';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import Modal from '../../components/ui/Modal';
+import { CustomAreaChart, CustomPieChart } from '../../components/ui/Charts';
 import { useData } from '../../contexts/DataContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useCompanySelection } from '../../contexts/CompanySelectionContext';
@@ -464,39 +465,27 @@ const InvestorPortfolioDashboard: React.FC = () => {
             </div>
           </div>
 
-          <div className="h-64 flex items-end justify-between space-x-1">
-            {performanceData.map((data, index) => {
-              const maxValue = Math.max(...performanceData.map(d => d.portfolioValue));
-              const height = maxValue > 0 ? (data.portfolioValue / maxValue) * 100 : 0;
-              const isPositive = data.returns >= 0;
-
-              return (
-                <div key={index} className="flex-1 flex flex-col items-center group">
-                  <div className="relative w-full h-full flex items-end">
-                    <div
-                      className={`w-full rounded-t transition-all duration-300 group-hover:opacity-80 ${
-                        isPositive
-                          ? 'bg-gradient-to-t from-green-500/80 to-green-500/20'
-                          : 'bg-gradient-to-t from-red-500/80 to-red-500/20'
-                      }`}
-                      style={{ height: `${Math.max(height, 5)}%` }}
-                    />
-
-                    {/* Tooltip */}
-                    <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10">
-                      <div className="bg-slate-900 text-white text-xs rounded-lg p-2 shadow-lg border border-slate-600 whitespace-nowrap">
-                        <div className="font-medium">{new Date(data.date).toLocaleDateString('en-US', { month: 'short' })}</div>
-                        <div>Value: ${data.portfolioValue.toLocaleString()}</div>
-                        <div className={isPositive ? 'text-green-400' : 'text-red-400'}>
-                          {isPositive ? '+' : ''}${data.returns.toLocaleString()}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+          {performanceData.length > 0 ? (
+            <CustomAreaChart
+              data={performanceData.map(item => ({
+                name: new Date(item.date).toLocaleDateString('en-US', { month: 'short' }),
+                invested: item.invested,
+                value: item.portfolioValue,
+                returns: item.returns
+              }))}
+              xKey="name"
+              areas={[
+                { key: 'invested', name: 'Invested', color: '#64748B', fillOpacity: 0.2 },
+                { key: 'value', name: 'Portfolio Value', color: '#EAB308', fillOpacity: 0.3 }
+              ]}
+              height={256}
+              className="bg-transparent p-0"
+            />
+          ) : (
+            <div className="h-64 flex items-center justify-center text-slate-400">
+              No performance data available
+            </div>
+          )}
 
           <div className="flex justify-between text-xs text-slate-400 mt-2">
             <span>{performanceData[0]?.date ? new Date(performanceData[0].date).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : ''}</span>
@@ -511,38 +500,25 @@ const InvestorPortfolioDashboard: React.FC = () => {
             <h3 className="text-lg font-medium text-white">Portfolio Breakdown</h3>
           </div>
 
-          <div className="space-y-4">
-            {analytics?.portfolioDistribution && analytics.portfolioDistribution.length > 0 ? (
-              analytics.portfolioDistribution.map((item, index) => (
-                <div key={index} className="space-y-2">
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-slate-300">{item.assetType}</span>
-                    <div className="text-right">
-                      <div className="text-sm font-medium text-white">{item.percentage.toFixed(1)}%</div>
-                      <div className="text-xs text-slate-400">${item.value.toLocaleString()}</div>
-                    </div>
-                  </div>
-                  <div className="w-full h-2 bg-slate-700 rounded-full overflow-hidden">
-                    <div
-                      className={`h-full transition-all duration-500 ${
-                        index % 5 === 0 ? 'bg-blue-500' :
-                        index % 5 === 1 ? 'bg-green-500' :
-                        index % 5 === 2 ? 'bg-yellow-500' :
-                        index % 5 === 3 ? 'bg-purple-500' : 'bg-teal-500'
-                      }`}
-                      style={{ width: `${item.percentage}%` }}
-                    />
-                  </div>
-                </div>
-              ))
-            ) : (
-              <div className="text-center py-8">
+          {analytics?.portfolioDistribution && analytics.portfolioDistribution.length > 0 ? (
+            <CustomPieChart
+              data={analytics.portfolioDistribution.map((item, index) => ({
+                name: item.assetType,
+                value: item.value,
+                color: ['#3B82F6', '#10B981', '#EAB308', '#8B5CF6', '#06B6D4'][index % 5]
+              }))}
+              height={250}
+              className="bg-transparent p-0"
+            />
+          ) : (
+            <div className="h-64 flex items-center justify-center text-slate-400">
+              <div className="text-center">
                 <PieChart className="h-12 w-12 text-slate-600 mx-auto mb-3" />
                 <p className="text-slate-400 text-sm">No portfolio data available</p>
                 <p className="text-slate-500 text-xs mt-1">Start investing to see breakdown</p>
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       </div>
 

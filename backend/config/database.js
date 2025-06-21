@@ -18,6 +18,17 @@ class DatabaseConnection {
    * Connect to MongoDB with production-ready configuration
    */
   async connect() {
+    // Check if we should use mock database
+    if (config.USE_MOCK_DB === 'true') {
+      console.log('🔄 Using mock database mode...');
+      this.isConnected = true;
+      console.log('✅ Mock database connected successfully');
+      console.log('💡 To use real MongoDB:');
+      console.log('   1. Start MongoDB: mongod --dbpath mongodb-data');
+      console.log('   2. Set USE_MOCK_DB=false in backend/.env');
+      return true;
+    }
+
     try {
       // MongoDB connection options for production
       const options = {
@@ -90,14 +101,14 @@ class DatabaseConnection {
       this.connectionAttempts++;
       
       console.error('❌ MongoDB connection failed:', error.message);
-      
-      if (this.connectionAttempts < this.maxRetries) {
-        console.log(`🔄 Retrying connection in ${this.retryDelay / 1000} seconds... (${this.connectionAttempts}/${this.maxRetries})`);
-        setTimeout(() => this.connect(), this.retryDelay);
-      } else {
-        console.error('💥 Maximum connection attempts reached. Exiting...');
-        process.exit(1);
-      }
+      console.log('⚠️  Running in limited mode without database');
+      console.log('💡 To fix this:');
+      console.log('   1. Start MongoDB: run start-mongodb.ps1');
+      console.log('   2. Or use MongoDB Atlas: https://www.mongodb.com/atlas');
+      console.log('   3. Update MONGODB_URI in backend/.env');
+
+      // Don't exit, just continue without database
+      this.isConnected = false;
       
       return false;
     }

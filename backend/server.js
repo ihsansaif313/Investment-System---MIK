@@ -37,7 +37,7 @@ app.use(validateProductionConfig);
 
 // Performance middleware
 app.use(compressionMiddleware);
-app.use(performanceMonitoring);
+// app.use(performanceMonitoring); // Temporarily disabled
 
 // Production security middleware
 app.use(productionSecurity);
@@ -57,8 +57,40 @@ app.use(helmet({
       mediaSrc: ["'self'"],
       frameSrc: ["'none'"],
     },
-  } : false
+  } : false,
+  hsts: {
+    maxAge: 31536000,
+    includeSubDomains: true,
+    preload: true
+  },
+  noSniff: true,
+  xssFilter: true,
+  referrerPolicy: { policy: "same-origin" }
 }));
+
+// Additional security headers
+app.use((req, res, next) => {
+  // Prevent clickjacking
+  res.setHeader('X-Frame-Options', 'DENY');
+
+  // Remove server information
+  res.removeHeader('X-Powered-By');
+
+  // Prevent caching of sensitive data
+  if (req.path.includes('/api/auth') || req.path.includes('/api/admin') || req.path.includes('/api/investor')) {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+  }
+
+  // Security headers for API responses
+  if (req.path.includes('/api/')) {
+    res.setHeader('X-API-Version', '1.0.0');
+    res.setHeader('X-Security-Policy', 'strict');
+  }
+
+  next();
+});
 
 // CORS configuration - Production-ready with domain validation
 const corsOrigins = process.env.CORS_ORIGIN || 'http://localhost:5173';
@@ -165,22 +197,22 @@ const limiter = rateLimit({
   skip: (req) => req.path === '/health'
 });
 
-// Apply general rate limiting
-app.use('/api/', limiter);
+// Apply general rate limiting - DISABLED FOR DEVELOPMENT
+// app.use('/api/', limiter);
 
-// Stricter rate limiting for authentication endpoints
-const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: process.env.NODE_ENV === 'production' ? 5 : 10, // Very strict for auth
-  message: {
-    error: 'Too many authentication attempts, please try again later.',
-    code: 'AUTH_RATE_LIMIT_EXCEEDED'
-  },
-  standardHeaders: true,
-  legacyHeaders: false,
-});
+// Stricter rate limiting for authentication endpoints - DISABLED FOR DEVELOPMENT
+// const authLimiter = rateLimit({
+//   windowMs: 15 * 60 * 1000, // 15 minutes
+//   max: process.env.NODE_ENV === 'production' ? 5 : 100, // Much higher limit for development
+//   message: {
+//     error: 'Too many authentication attempts, please try again later.',
+//     code: 'AUTH_RATE_LIMIT_EXCEEDED'
+//   },
+//   standardHeaders: true,
+//   legacyHeaders: false,
+// });
 
-app.use('/api/auth', authLimiter);
+// app.use('/api/auth', authLimiter);
 
 // Body parsing middleware with production limits
 const bodyLimit = process.env.NODE_ENV === 'production' ? '5mb' : '10mb';
@@ -188,7 +220,7 @@ app.use(express.json({ limit: bodyLimit }));
 app.use(express.urlencoded({ extended: true, limit: bodyLimit }));
 
 // Response optimization
-app.use(optimizeResponse);
+// app.use(optimizeResponse); // Temporarily disabled
 
 
 // MongoDB connection
@@ -291,6 +323,43 @@ app.use((error, req, res, next) => {
   });
 });
 
+// Enhanced security monitoring and error handling
+process.on('uncaughtException', (error) => {
+  console.error('❌ [SECURITY] Uncaught Exception:', error);
+  console.error('Stack:', error.stack);
+  console.error('Timestamp:', new Date().toISOString());
+  console.log('🔄 Server will continue running...');
+
+  // In production, you might want to send this to a monitoring service
+  if (process.env.NODE_ENV === 'production') {
+    // Log to monitoring service
+    console.error('[PRODUCTION] Critical error logged for monitoring');
+  }
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('❌ [SECURITY] Unhandled Rejection at:', promise, 'reason:', reason);
+  console.error('Timestamp:', new Date().toISOString());
+  console.log('🔄 Server will continue running...');
+
+  // In production, you might want to send this to a monitoring service
+  if (process.env.NODE_ENV === 'production') {
+    // Log to monitoring service
+    console.error('[PRODUCTION] Unhandled rejection logged for monitoring');
+  }
+});
+
+// Security event logging
+const logSecurityEvent = (event, details) => {
+  const timestamp = new Date().toISOString();
+  console.log(`[SECURITY] ${timestamp} - ${event}:`, details);
+
+  // In production, send to security monitoring service
+  if (process.env.NODE_ENV === 'production') {
+    // Send to security monitoring service
+  }
+};
+
 // Graceful shutdown
 process.on('SIGTERM', async () => {
   safeConsole.info('🔄 SIGTERM received, shutting down gracefully...');
@@ -306,7 +375,10 @@ process.on('SIGINT', async () => {
 
 // Start server
 app.listen(PORT, () => {
-  logStartup(PORT, { docs: true });
+  console.log(`🚀 Investment Management System Backend`);
+  console.log(`✅ Server running on port ${PORT}`);
+  console.log(`🌐 API URL: http://localhost:${PORT}`);
+  console.log(`🔗 Health Check: http://localhost:${PORT}/health`);
 });
 
 export default app;

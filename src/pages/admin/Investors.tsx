@@ -7,6 +7,7 @@ import { useData } from '../../contexts/DataContext';
 import { useSuccessToast, useErrorToast } from '../../components/ui/Toast';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import InvestorDetailModal from '../../components/admin/InvestorDetailModal';
+import CreateInvestorModal from '../../components/investor/CreateInvestorModal';
 interface Investor {
   id: string;
   name: string;
@@ -35,6 +36,7 @@ const Investors: React.FC = () => {
   const [filter, setFilter] = useState('all');
   const [selectedInvestor, setSelectedInvestor] = useState<Investor | null>(null);
   const [processingId, setProcessingId] = useState<string | null>(null);
+  const [showCreateModal, setShowCreateModal] = useState(false);
 
   // Get the admin's sub-company ID
   const subCompanyId = user?.subCompanyAdmin?.sub_company_id;
@@ -153,7 +155,11 @@ const Investors: React.FC = () => {
             <FilterIcon className="absolute right-3 top-2.5 h-5 w-5 text-slate-400 pointer-events-none" />
           </div>
         </div>
-        <Button variant="primary" className="flex items-center justify-center">
+        <Button
+          variant="primary"
+          className="flex items-center justify-center"
+          onClick={() => setShowCreateModal(true)}
+        >
           <UserPlusIcon className="h-5 w-5 mr-2" />
           Add Investor
         </Button>
@@ -376,6 +382,17 @@ const Investors: React.FC = () => {
       </div>
       {/* Investor Detail Modal */}
       {selectedInvestor && <InvestorDetailModal investor={selectedInvestor} onClose={handleCloseModal} onApprove={handleApproveInvestor} onReject={handleRejectInvestor} isProcessing={processingId === selectedInvestor.id} />}
+
+      {/* Create Investor Modal */}
+      <CreateInvestorModal
+        isOpen={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        onSuccess={() => {
+          refreshInvestors();
+          setShowCreateModal(false);
+        }}
+        companyId={user?.companyAssignments?.[0]?.subCompanyId || 'default-company-id'}
+      />
     </AdminDashboardLayout>;
 };
 export default Investors;

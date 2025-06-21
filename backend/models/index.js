@@ -20,6 +20,10 @@ import {
   sessionSchema
 } from '../database/schema.js';
 
+// Import standalone models
+import DailyPerformance from './DailyPerformance.js';
+import Investment from './Investment.js';
+
 // ============================================================================
 // USER MODEL WITH MIDDLEWARE
 // ============================================================================
@@ -195,7 +199,8 @@ const OwnerCompany = mongoose.models.OwnerCompany || mongoose.model('OwnerCompan
 const SubCompany = mongoose.models.SubCompany || mongoose.model('SubCompany', subCompanySchema);
 const CompanyAssignment = mongoose.models.CompanyAssignment || mongoose.model('CompanyAssignment', companyAssignmentSchema);
 const Asset = mongoose.models.Asset || mongoose.model('Asset', assetSchema);
-const Investment = mongoose.models.Investment || mongoose.model('Investment', investmentSchema);
+// Use standalone Investment model instead of schema-based one
+// const Investment = mongoose.models.Investment || mongoose.model('Investment', investmentSchema);
 const InvestorInvestment = mongoose.models.InvestorInvestment || mongoose.model('InvestorInvestment', investorInvestmentSchema);
 const ProfitLoss = mongoose.models.ProfitLoss || mongoose.model('ProfitLoss', profitLossSchema);
 const ActivityLog = mongoose.models.ActivityLog || mongoose.model('ActivityLog', activityLogSchema);
@@ -210,6 +215,7 @@ export {
   CompanyAssignment,
   Asset,
   Investment,
+  DailyPerformance,
   InvestorInvestment,
   ProfitLoss,
   ActivityLog,

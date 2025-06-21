@@ -2,6 +2,7 @@ import express from 'express';
 import { User, Role } from '../models/index.js';
 import { authenticate, authorize } from '../middleware/auth.js';
 import { body, param, validationResult } from 'express-validator';
+import { sendAdminApprovalEmail, sendAdminRejectionEmail } from '../utils/emailService.js';
 
 const router = express.Router();
 
@@ -116,6 +117,20 @@ router.post('/approve/:userId',
       adminRole.status = 'active';
       await adminRole.save();
 
+      console.log(`Admin approved: ${adminRole.userId.email} by ${req.user.email}`);
+
+      // Send approval notification email
+      try {
+        await sendAdminApprovalEmail(
+          adminRole.userId.email,
+          adminRole.userId.firstName
+        );
+        console.log(`Approval notification email sent to: ${adminRole.userId.email}`);
+      } catch (emailError) {
+        console.error('Failed to send approval notification email:', emailError.message);
+        // Continue with approval even if email fails
+      }
+
       res.json({
         success: true,
         message: 'Admin approved successfully',
@@ -187,6 +202,21 @@ router.post('/reject/:userId',
 
       // Also deactivate the user account
       await User.findByIdAndUpdate(userId, { isActive: false });
+
+      console.log(`Admin rejected: ${adminRole.userId.email} by ${req.user.email}`);
+
+      // Send rejection notification email
+      try {
+        await sendAdminRejectionEmail(
+          adminRole.userId.email,
+          adminRole.userId.firstName,
+          reason
+        );
+        console.log(`Rejection notification email sent to: ${adminRole.userId.email}`);
+      } catch (emailError) {
+        console.error('Failed to send rejection notification email:', emailError.message);
+        // Continue with rejection even if email fails
+      }
 
       res.json({
         success: true,

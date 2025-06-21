@@ -1,12 +1,16 @@
-// PRODUCTION SECURITY: Seed file disabled for production
-if (process.env.NODE_ENV === 'production') {
-  console.error('❌ SECURITY WARNING: Seed file is disabled in production');
-  console.error('❌ This file contains test data and should not be run in production');
-  console.error('💡 Use proper data migration scripts for production deployment');
-  process.exit(1);
-}
+/**
+ * DUMMY DATA SEEDING SCRIPT - DISABLED FOR PRODUCTION USE
+ * This file has been disabled to ensure clean production deployment
+ * Use production-init.js for essential system initialization
+ */
 
-// DEVELOPMENT SEED FILE - ENABLED FOR LOCAL USE ONLY
+console.error('❌ DUMMY DATA SEEDING DISABLED');
+console.error('❌ This file contains test/dummy data and is disabled for production use');
+console.error('💡 For production initialization, use: node scripts/production-init.js');
+console.error('💡 For development with dummy data, rename this file to seed.js.dev');
+process.exit(1);
+
+// DISABLED DEVELOPMENT SEED FILE - CONTAINS DUMMY DATA
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 import User from './models/User.js';

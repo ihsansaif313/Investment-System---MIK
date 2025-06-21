@@ -5,6 +5,7 @@ import {
   LoginResponse,
   User,
   UserWithRole,
+  UserRole,
   SubCompany,
   SubCompanyWithDetails,
   Investment,
@@ -12,6 +13,7 @@ import {
   InvestorInvestment,
   InvestorInvestmentWithDetails,
   Asset,
+  AssetType,
   ProfitLoss,
   SuperadminAnalytics,
   AdminAnalytics,
@@ -19,6 +21,7 @@ import {
   SalesmanAnalytics,
   CreateSubCompanyForm,
   CreateInvestmentForm,
+  CreateInvestorForm,
   InvestForm,
   InvestmentFilters,
   UserFilters,
@@ -35,10 +38,12 @@ const transformSubCompany = (apiCompany: any): SubCompanyWithDetails => {
     owner_company_id: apiCompany.ownerCompanyId?._id || apiCompany.ownerCompanyId,
     name: apiCompany.name || 'Unknown Company',
     industry: apiCompany.industry || 'Unknown',
+    category: apiCompany.category || 'General',
     description: apiCompany.description || '',
     address: apiCompany.address || '',
     contact_email: apiCompany.contactEmail || '',
     phone: apiCompany.contactPhone || '',
+
     logo: apiCompany.logo || '',
     established_date: apiCompany.establishedDate ? new Date(apiCompany.establishedDate) : new Date(),
     status: apiCompany.status || 'active',
@@ -50,7 +55,7 @@ const transformSubCompany = (apiCompany: any): SubCompanyWithDetails => {
       email: apiCompany.adminUserId.email || '',
       firstName: apiCompany.adminUserId.firstName || '',
       lastName: apiCompany.adminUserId.lastName || '',
-      role: { id: '', type: 'admin' as UserRole, permissions: [], created_at: new Date(), updated_at: new Date() },
+      role: { id: '', user_id: '', type: 'admin' as UserRole, status: 'active', permissions: [], created_at: new Date() },
       created_at: new Date(),
       updated_at: new Date()
     } : undefined,
@@ -65,14 +70,85 @@ const transformSubCompany = (apiCompany: any): SubCompanyWithDetails => {
   };
 };
 
+const transformAsset = (apiAsset: any): Asset => {
+  return {
+    id: apiAsset._id,
+    name: apiAsset.name || 'Unknown Asset',
+    type: apiAsset.type || 'equity',
+    description: apiAsset.description || '',
+    sector: apiAsset.category || 'General',
+    logo: apiAsset.logo || '',
+    created_at: apiAsset.createdAt ? new Date(apiAsset.createdAt) : new Date(),
+    updated_at: apiAsset.updatedAt ? new Date(apiAsset.updatedAt) : new Date()
+  };
+};
+
+const transformInvestment = (apiInvestment: any): InvestmentWithDetails => {
+  return {
+    id: apiInvestment._id,
+    sub_company_id: apiInvestment.subCompanyId?._id || apiInvestment.subCompanyId,
+    asset_id: apiInvestment.assetId?._id || apiInvestment.assetId,
+    name: apiInvestment.name || 'Unknown Investment',
+    description: apiInvestment.description || '',
+    initial_amount: apiInvestment.initialAmount || 0,
+    current_value: apiInvestment.currentValue || 0,
+    target_amount: apiInvestment.targetAmount || 0,
+    min_investment: apiInvestment.minInvestment || 0,
+    max_investment: apiInvestment.maxInvestment || 0,
+    expected_roi: apiInvestment.expectedROI || 0,
+    start_date: apiInvestment.startDate ? new Date(apiInvestment.startDate) : new Date(),
+    end_date: apiInvestment.endDate ? new Date(apiInvestment.endDate) : undefined,
+    status: apiInvestment.status || 'Active',
+    risk_level: apiInvestment.riskLevel || 'Medium',
+    terms_conditions: apiInvestment.termsConditions || '',
+    created_at: apiInvestment.createdAt ? new Date(apiInvestment.createdAt) : new Date(),
+    updated_at: apiInvestment.updatedAt ? new Date(apiInvestment.updatedAt) : new Date(),
+    asset: apiInvestment.assetId ? transformAsset(apiInvestment.assetId) : {
+      id: '',
+      name: 'Unknown Asset',
+      type: 'Stock' as AssetType,
+      description: '',
+      sector: 'General',
+      created_at: new Date(),
+      updated_at: new Date()
+    },
+    subCompany: apiInvestment.subCompanyId ? transformSubCompany(apiInvestment.subCompanyId) : {
+      id: '',
+      owner_company_id: '',
+      name: 'Unknown Company',
+      industry: 'Unknown',
+      category: 'General',
+      description: '',
+      address: '',
+      contact_email: '',
+      phone: '',
+      logo: '',
+      established_date: new Date(),
+      status: 'active',
+      created_at: new Date(),
+      updated_at: new Date(),
+      ownerCompany: { id: '', name: '', address: '', contact_email: '', established_date: new Date(), created_at: new Date(), updated_at: new Date() },
+      totalInvestments: 0,
+      totalInvestors: 0,
+      totalValue: 0,
+      profitLoss: { profit: 0, loss: 0, roi: 0 }
+    },
+    investorInvestments: [],
+    profitLossRecords: [],
+    totalInvested: apiInvestment.performanceMetrics?.totalInvested || 0,
+    totalInvestors: apiInvestment.performanceMetrics?.totalInvestors || 0,
+    currentROI: apiInvestment.actualROI || 0
+  };
+};
+
 class ApiService {
   private api: AxiosInstance;
   private baseURL: string;
 
   constructor() {
     // Use environment variable for API URL to support network access
-    // Temporarily hardcode for network access
-    this.baseURL = 'http://192.168.1.8:3001/api';
+    // Updated to use correct backend port
+    this.baseURL = 'http://localhost:3001/api';
     console.log('API Service initialized with baseURL:', this.baseURL);
     console.log('Environment variables:', import.meta.env);
     
@@ -308,11 +384,13 @@ class ApiService {
     if (USE_MOCK_API) {
       return mockApiService.getInvestments(filters);
     }
-  
-    const response: AxiosResponse<ApiResponse<InvestmentWithDetails[]>> = await this.api.get('/investments', {
+
+    const response: AxiosResponse<ApiResponse<any[]>> = await this.api.get('/investments', {
       params: filters,
     });
-    return response.data.data!;
+
+    // Transform the raw API data to match frontend interfaces
+    return response.data.data?.map(transformInvestment) || [];
   }
 
   async getInvestmentById(id: string): Promise<InvestmentWithDetails> {
@@ -334,6 +412,32 @@ class ApiService {
     await this.api.delete(`/investments/${id}`);
   }
 
+  // Daily performance management endpoints
+  async addDailyPerformance(investmentId: string, performanceData: {
+    marketValue: number;
+    notes?: string;
+    marketConditions?: string;
+    date?: string;
+  }): Promise<any> {
+    const response: AxiosResponse<ApiResponse<any>> = await this.api.post(`/investments/${investmentId}/performance`, performanceData);
+    return response.data.data!;
+  }
+
+  async getPerformanceHistory(investmentId: string, params?: {
+    days?: number;
+    page?: number;
+    limit?: number;
+  }): Promise<{
+    performance: any[];
+    summary: any;
+    pagination: any;
+  }> {
+    const response: AxiosResponse<ApiResponse<any>> = await this.api.get(`/investments/${investmentId}/performance`, {
+      params
+    });
+    return response.data.data!;
+  }
+
   // Investor investment endpoints
   async getInvestorInvestments(userId?: string): Promise<InvestorInvestmentWithDetails[]> {
     const response: AxiosResponse<ApiResponse<InvestorInvestmentWithDetails[]>> = await this.api.get('/investor-investments', {
@@ -353,8 +457,8 @@ class ApiService {
 
   // Asset management endpoints
   async getAssets(): Promise<Asset[]> {
-    const response: AxiosResponse<ApiResponse<Asset[]>> = await this.api.get('/assets');
-    return response.data.data!;
+    const response: AxiosResponse<ApiResponse<any[]>> = await this.api.get('/assets');
+    return response.data.data?.map(transformAsset) || [];
   }
 
   async getAssetById(id: string): Promise<Asset> {
@@ -563,6 +667,53 @@ class ApiService {
       },
     });
     return response.data.data!.url;
+  }
+
+  // Investor management endpoints
+  async createInvestor(investorData: CreateInvestorForm & { companyId: string }): Promise<UserWithRole> {
+    const response: AxiosResponse<ApiResponse<UserWithRole>> = await this.api.post('/investor-management', investorData);
+    return response.data.data!;
+  }
+
+  async getInvestors(companyId: string): Promise<UserWithRole[]> {
+    const response: AxiosResponse<ApiResponse<UserWithRole[]>> = await this.api.get(`/investor-management/company/${companyId}`);
+    return response.data.data!;
+  }
+
+  async getInvestorById(id: string): Promise<UserWithRole> {
+    const response: AxiosResponse<ApiResponse<UserWithRole>> = await this.api.get(`/investor-management/${id}`);
+    return response.data.data!;
+  }
+
+  async setupInvestorPassword(email: string, currentPassword: string, newPassword: string): Promise<void> {
+    await this.api.post('/investor-management/setup-password', {
+      email,
+      currentPassword,
+      newPassword
+    });
+  }
+
+  async setupPassword(newPassword: string, confirmPassword: string, token: string): Promise<LoginResponse> {
+    const response: AxiosResponse<ApiResponse<LoginResponse>> = await this.api.post('/auth/setup-password', {
+      newPassword,
+      confirmPassword
+    }, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    return response.data.data!;
+  }
+
+  async forgotInvestorPassword(email: string): Promise<void> {
+    await this.api.post('/investor-management/forgot-password', { email });
+  }
+
+  async resetInvestorPassword(token: string, newPassword: string): Promise<void> {
+    await this.api.post('/investor-management/reset-password', {
+      token,
+      newPassword
+    });
   }
 }
 

@@ -6,21 +6,42 @@ import User from '../models/User.js';
 import Role from '../models/Role.js';
 import Session from '../models/Session.js';
 import { config } from '../config/environment.js';
-import { sendVerificationEmail } from '../services/emailService.js';
+import { sendVerificationEmail, sendPasswordResetEmail } from '../utils/emailService.js';
 import ActivityLogService from '../services/ActivityLogService.js';
 
 const router = express.Router();
 
-// Rate limiting for authentication endpoints (development-friendly settings)
+// Enhanced rate limiting for authentication endpoints
 const authLimiter = rateLimit({
   windowMs: 60 * 60 * 1000, // 60 minutes (1 hour)
-  max: 50, // Limit each IP to 50 requests per windowMs (generous for development)
+  max: process.env.NODE_ENV === 'production' ? 10 : 50, // Stricter in production
   message: {
     success: false,
-    message: 'Too many authentication attempts, please try again later.'
+    message: 'Too many authentication attempts, please try again later.',
+    code: 'AUTH_RATE_LIMIT_EXCEEDED',
+    retryAfter: 60 * 60 // 1 hour in seconds
   },
   standardHeaders: true,
   legacyHeaders: false,
+  // Skip rate limiting for certain endpoints
+  skip: (req) => {
+    const skipPaths = ['/verify-email'];
+    return skipPaths.some(path => req.path.includes(path));
+  }
+});
+
+// Stricter rate limiting for password-related endpoints
+const passwordLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: process.env.NODE_ENV === 'production' ? 3 : 20, // Very strict in production
+  message: {
+    success: false,
+    message: 'Too many password attempts, please try again later.',
+    code: 'PASSWORD_RATE_LIMIT_EXCEEDED',
+    retryAfter: 60 * 60 // 1 hour in seconds
+  },
+  standardHeaders: true,
+  legacyHeaders: false
 });
 
 // Generate JWT tokens using environment configuration
@@ -30,11 +51,23 @@ const generateTokens = (userId) => {
   return { accessToken, refreshToken };
 };
 
-// Login endpoint using real database
-router.post('/login', authLimiter, [
-  body('email').isEmail().normalizeEmail().withMessage('Please provide a valid email'),
-  body('password').notEmpty().withMessage('Password is required')
-], async (req, res) => {
+// Enhanced login validation
+const loginValidation = [
+  body('email')
+    .isEmail()
+    .normalizeEmail()
+    .withMessage('Please provide a valid email')
+    .isLength({ max: 100 })
+    .withMessage('Email address is too long'),
+  body('password')
+    .notEmpty()
+    .withMessage('Password is required')
+    .isLength({ max: 128 })
+    .withMessage('Password is too long')
+];
+
+// Login endpoint using real database with enhanced security
+router.post('/login', authLimiter, loginValidation, async (req, res) => {
   try {
     // Check validation errors
     const errors = validationResult(req);
@@ -77,8 +110,13 @@ router.post('/login', authLimiter, [
     }
 
     // Verify password
+    console.log(`[Login] Attempting password verification for ${user.email}`);
+    console.log(`[Login] User isFirstLogin: ${user.isFirstLogin}`);
     const isMatch = await user.comparePassword(password);
+    console.log(`[Login] Password match result: ${isMatch}`);
+
     if (!isMatch) {
+      console.log(`[Login] Password verification failed for ${user.email}`);
       await user.incLoginAttempts();
       return res.status(401).json({
         success: false,
@@ -89,7 +127,22 @@ router.post('/login', authLimiter, [
     // Reset login attempts on successful login
     await user.resetLoginAttempts();
 
-    // Generate JWT tokens
+    // Debug logging for first-time login check
+    console.log(`[DEBUG] User ${user.email} - isFirstLogin: ${user.isFirstLogin}, accountStatus: ${user.accountStatus}`);
+
+    // BYPASS: Skip first-time login password setup for investors
+    // Allow investors to login directly with temporary password
+    if (user.isFirstLogin) {
+      console.log(`[First-Time Login] User ${user.email} - BYPASSING password setup for direct login`);
+
+      // Mark user as no longer first-time login to prevent future redirects
+      user.isFirstLogin = false;
+      await user.save();
+
+      console.log(`[First-Time Login] User ${user.email} - isFirstLogin set to false, proceeding with normal login`);
+    }
+
+    // Generate JWT tokens for regular login
     const { accessToken, refreshToken } = generateTokens(user._id);
 
     // Create session for the tokens
@@ -135,6 +188,22 @@ router.post('/login', authLimiter, [
     console.log('[DEBUG] User object before login response:', JSON.stringify(user));
     console.log('[DEBUG] Final user role for login response:', JSON.stringify(userRole));
 
+    // Get company assignments for admin users
+    let companyAssignments = [];
+    if (userRole.type === 'admin') {
+      try {
+        const { CompanyAssignment } = await import('../models/index.js');
+        companyAssignments = await CompanyAssignment.find({
+          userId: user._id,
+          status: 'active'
+        }).populate('subCompanyId', 'name industry description logo');
+
+        console.log(`[DEBUG] Found ${companyAssignments.length} company assignments for admin user ${user.email}`);
+      } catch (assignmentError) {
+        console.error('Failed to fetch company assignments:', assignmentError);
+      }
+    }
+
     // Log user login activity
     try {
       await ActivityLogService.logUserLogin(user._id, {
@@ -146,21 +215,39 @@ router.post('/login', authLimiter, [
       console.error('Failed to log user login activity:', logError);
     }
 
+    // Prepare user response with company assignments for admins
+    const userResponse = {
+      id: user._id,
+      email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      role: {
+        id: userRole.type,
+        type: userRole.type,
+        permissions: userRole.permissions || [],
+        status: userRole.status || 'active'
+      }
+    };
+
+    // Add company assignments for admin users
+    if (userRole.type === 'admin' && companyAssignments.length > 0) {
+      userResponse.companyAssignments = companyAssignments.map(assignment => ({
+        id: assignment._id,
+        companyId: assignment.subCompanyId._id,
+        companyName: assignment.subCompanyId.name,
+        companyIndustry: assignment.subCompanyId.industry,
+        companyDescription: assignment.subCompanyId.description,
+        companyLogo: assignment.subCompanyId.logo,
+        permissions: assignment.permissions,
+        assignedDate: assignment.assignedDate,
+        status: assignment.status
+      }));
+    }
+
     res.json({
       success: true,
       data: {
-        user: {
-          id: user._id,
-          email: user.email,
-          firstName: user.firstName,
-          lastName: user.lastName,
-          role: {
-            id: userRole.type,
-            type: userRole.type,
-            permissions: userRole.permissions || [],
-            status: userRole.status || 'active'
-          }
-        },
+        user: userResponse,
         token: accessToken,
         refreshToken,
         expiresIn: config.JWT_EXPIRES_IN
@@ -278,16 +365,45 @@ router.post('/refresh', [
   }
 });
 
-// Register endpoint using real database
-router.post('/register', authLimiter, [
-  body('email').isEmail().normalizeEmail().withMessage('Please provide a valid email'),
-  body('firstName').trim().isLength({ min: 1 }).withMessage('First name is required'),
-  body('lastName').trim().isLength({ min: 1 }).withMessage('Last name is required'),
-  body('password').isLength({ min: 8 }).withMessage('Password must be at least 8 characters')
+// Enhanced registration validation with security measures
+const registrationValidation = [
+  body('email')
+    .isEmail()
+    .normalizeEmail()
+    .withMessage('Please provide a valid email')
+    .isLength({ max: 100 })
+    .withMessage('Email address is too long')
+    .escape(), // Prevent XSS
+
+  body('firstName')
+    .trim()
+    .isLength({ min: 2, max: 50 })
+    .withMessage('First name must be between 2 and 50 characters')
+    .matches(/^[a-zA-Z\s]+$/)
+    .withMessage('First name can only contain letters and spaces')
+    .escape(), // Prevent XSS
+
+  body('lastName')
+    .trim()
+    .isLength({ min: 2, max: 50 })
+    .withMessage('Last name must be between 2 and 50 characters')
+    .matches(/^[a-zA-Z\s]+$/)
+    .withMessage('Last name can only contain letters and spaces')
+    .escape(), // Prevent XSS
+
+  body('password')
+    .isLength({ min: 8, max: 128 })
+    .withMessage('Password must be between 8 and 128 characters')
     .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/)
     .withMessage('Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character'),
-  body('role').isIn(['superadmin', 'admin', 'investor']).withMessage('Invalid role')
-], async (req, res) => {
+
+  body('role')
+    .isIn(['superadmin', 'admin'])
+    .withMessage('Invalid role - investor registration disabled')
+];
+
+// Register endpoint using real database with enhanced security
+router.post('/register', authLimiter, registrationValidation, async (req, res) => {
   try {
     // Check validation errors
     const errors = validationResult(req);
@@ -302,6 +418,15 @@ router.post('/register', authLimiter, [
     const { email, password, firstName, lastName, role: roleType } = req.body;
 
     console.log(`[Registration Attempt] Email: ${email} | Role: ${roleType} | Timestamp: ${new Date().toISOString()}`);
+
+    // Explicitly prevent investor self-registration
+    if (roleType === 'investor') {
+      console.log(`[Registration Blocked] Investor self-registration attempt blocked for: ${email}`);
+      return res.status(403).json({
+        success: false,
+        message: 'Investor accounts cannot be self-registered. Please contact your company admin to create an investor account.'
+      });
+    }
 
     // Check if user already exists
     const existingUser = await User.findOne({ email });
@@ -438,6 +563,223 @@ router.get('/verify-email', async (req, res) => {
     });
   } catch (error) {
     console.error('Email verification error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
+});
+
+// First-time password setup endpoint
+router.post('/setup-password', passwordLimiter, [
+  body('newPassword')
+    .isLength({ min: 8, max: 128 })
+    .withMessage('Password must be between 8 and 128 characters')
+    .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/)
+    .withMessage('Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character'),
+  body('confirmPassword')
+    .custom((value, { req }) => {
+      if (value !== req.body.newPassword) {
+        throw new Error('Password confirmation does not match');
+      }
+      return true;
+    })
+], async (req, res) => {
+  try {
+    console.log(`[Password Setup] Endpoint called - Request received`);
+    console.log(`[Password Setup] Request body:`, {
+      newPassword: req.body.newPassword ? '[PROVIDED]' : '[MISSING]',
+      confirmPassword: req.body.confirmPassword ? '[PROVIDED]' : '[MISSING]'
+    });
+
+    // Check validation errors
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      console.log(`[Password Setup] Validation failed:`, errors.array());
+      return res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        errors: errors.array()
+      });
+    }
+
+    const { newPassword } = req.body;
+    const authHeader = req.header('Authorization');
+    const token = authHeader && authHeader.startsWith('Bearer ')
+      ? authHeader.substring(7)
+      : null;
+
+    console.log(`[Password Setup] Token extraction - Header present: ${!!authHeader}, Token extracted: ${!!token}`);
+
+    if (!token) {
+      console.log(`[Password Setup] No authorization token provided`);
+      return res.status(401).json({
+        success: false,
+        message: 'Authorization token required'
+      });
+    }
+
+    // Verify token and get user
+    console.log(`[Password Setup] Verifying JWT token...`);
+    let decoded;
+    try {
+      decoded = jwt.verify(token, config.JWT_SECRET);
+      console.log(`[Password Setup] Token verified successfully - User ID: ${decoded.userId}`);
+    } catch (jwtError) {
+      console.log(`[Password Setup] JWT verification failed:`, jwtError.message);
+      throw jwtError;
+    }
+
+    const user = await User.findById(decoded.userId);
+    console.log(`[Password Setup] User lookup - Found: ${!!user}, Email: ${user?.email}`);
+
+    if (!user) {
+      console.log(`[Password Setup] User not found for ID: ${decoded.userId}`);
+      return res.status(401).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Check if user is in first-login state
+    if (!user.isFirstLogin) {
+      return res.status(400).json({
+        success: false,
+        message: 'Password setup not required for this account'
+      });
+    }
+
+    // Verify this is a temporary session
+    const session = await Session.findOne({
+      token,
+      userId: user._id,
+      isActive: true,
+      isTemporary: true
+    });
+
+    if (!session) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid or expired password setup session'
+      });
+    }
+
+    console.log(`[Password Setup] User ${user.email} setting permanent password`);
+    console.log(`[Password Setup] Before update - isFirstLogin: ${user.isFirstLogin}`);
+
+    // Update user password and clear first-login flag
+    user.password = newPassword; // Will be hashed by pre-save middleware
+    user.isFirstLogin = false;
+    user.accountStatus = 'active';
+    user.emailVerified = true; // Ensure email is verified
+
+    // Explicitly mark all fields as modified to ensure MongoDB saves them
+    user.markModified('password');
+    user.markModified('isFirstLogin');
+    user.markModified('accountStatus');
+    user.markModified('emailVerified');
+
+    try {
+      await user.save();
+      console.log(`[Password Setup] User.save() completed successfully`);
+    } catch (saveError) {
+      console.error(`[Password Setup] Error saving user:`, saveError);
+      throw saveError;
+    }
+
+    // Force refresh user from database to ensure changes are persisted
+    const updatedUser = await User.findById(user._id);
+    console.log(`[Password Setup] After update - isFirstLogin: ${updatedUser.isFirstLogin}`);
+    console.log(`[Password Setup] After update - accountStatus: ${updatedUser.accountStatus}`);
+
+    // Verify the new password was saved correctly
+    const passwordVerification = await updatedUser.comparePassword(newPassword);
+    console.log(`[Password Setup] New password verification: ${passwordVerification}`);
+
+    if (!passwordVerification) {
+      console.error(`[Password Setup] ERROR: Password verification failed after save!`);
+      throw new Error('Password was not saved correctly');
+    }
+
+    if (updatedUser.isFirstLogin !== false) {
+      console.error(`[Password Setup] ERROR: isFirstLogin flag was not cleared! Current value: ${updatedUser.isFirstLogin}`);
+      throw new Error('isFirstLogin flag was not updated correctly');
+    }
+
+    console.log(`[Password Setup] All validations passed - password updated successfully for ${user.email}`);
+
+    // Deactivate ALL existing sessions for this user to ensure clean state
+    await Session.updateMany(
+      { userId: user._id, isActive: true },
+      { isActive: false }
+    );
+    console.log(`[Password Setup] Deactivated all existing sessions for ${user.email}`);
+
+    // Generate new regular session tokens
+    const { accessToken, refreshToken } = generateTokens(user._id);
+
+    // Create new regular session
+    const expiresInSeconds = parseInt(config.JWT_EXPIRES_IN, 10);
+    const expiresAt = new Date(Date.now() + expiresInSeconds * 1000);
+    const newSession = new Session({
+      token: accessToken,
+      refreshToken,
+      userId: user._id,
+      isActive: true,
+      expiresAt
+    });
+    await newSession.save();
+
+    // Get user role
+    const userRole = await Role.findOne({ userId: user._id });
+
+    // Log password setup activity
+    try {
+      await ActivityLogService.log({
+        userId: user._id,
+        action: 'password_setup_completed',
+        entityType: 'user',
+        entityId: user._id.toString(),
+        description: `User ${user.firstName} ${user.lastName} completed first-time password setup`,
+        metadata: {
+          email: user.email,
+          setupTime: new Date().toISOString()
+        }
+      });
+    } catch (logError) {
+      console.error('Failed to log password setup activity:', logError);
+    }
+
+    res.json({
+      success: true,
+      message: 'Password set successfully. You are now logged in.',
+      data: {
+        user: {
+          id: user._id,
+          email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          role: {
+            id: userRole?.type || 'investor',
+            type: userRole?.type || 'investor',
+            permissions: userRole?.permissions || [],
+            status: userRole?.status || 'active'
+          }
+        },
+        token: accessToken,
+        refreshToken,
+        expiresIn: config.JWT_EXPIRES_IN
+      }
+    });
+
+  } catch (error) {
+    if (error.name === 'JsonWebTokenError' || error.name === 'TokenExpiredError') {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid or expired token'
+      });
+    }
+    console.error('Password setup error:', error);
     res.status(500).json({
       success: false,
       message: 'Internal server error'

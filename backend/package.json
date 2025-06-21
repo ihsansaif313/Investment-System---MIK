@@ -11,32 +11,42 @@
     "dev:debug": "nodemon --inspect server.js",
     "test": "echo \"Error: no test specified\" && exit 1",
     "test:production": "node test-production-fixes.js",
-    "seed": "node seed.js",
+    "seed": "echo \"Dummy data seeding disabled - use production-init for clean setup\" && exit 1",
     "seed:prod": "echo \"Seed disabled in production for security\" && exit 1",
+    "init:production": "node scripts/production-init.js",
+    "verify:production": "node scripts/verify-production-state.js",
     "optimize:db": "node optimize-database-production.js",
     "clear:db": "node clear-database.js",
     "logs:view": "tail -f logs/combined.log",
     "logs:error": "tail -f logs/error.log",
     "health": "curl -f http://localhost:3001/health || exit 1"
   },
-  "keywords": ["investment", "management", "api", "mongodb", "express"],
+  "keywords": [
+    "investment",
+    "management",
+    "api",
+    "mongodb",
+    "express"
+  ],
   "author": "Investment Management Team",
   "license": "MIT",
   "dependencies": {
-    "express": "^4.18.2",
-    "mongoose": "^8.16.0",
-    "cors": "^2.8.5",
-    "dotenv": "^16.3.1",
     "bcryptjs": "^2.4.3",
-    "jsonwebtoken": "^9.0.2",
+    "compression": "^1.8.0",
+    "cors": "^2.8.5",
+    "date-fns": "^4.1.0",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "express-rate-limit": "^7.1.5",
     "express-validator": "^7.0.1",
     "helmet": "^7.1.0",
-    "express-rate-limit": "^7.1.5",
-    "uuid": "^11.1.0",
-    "date-fns": "^4.1.0"
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.16.0",
+    "nodemailer": "^7.0.3",
+    "uuid": "^11.1.0"
   },
   "devDependencies": {
-    "nodemon": "^3.0.2",
-    "@types/node": "^20.11.18"
+    "@types/node": "^20.11.18",
+    "nodemon": "^3.0.2"
   }
 }

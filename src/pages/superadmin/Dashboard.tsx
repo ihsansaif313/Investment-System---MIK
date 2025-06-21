@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   Building2,
@@ -7,125 +7,86 @@ import {
   DollarSign,
   Plus,
   Eye,
-  MoreHorizontal,
   Activity,
-  AlertCircle,
-  CheckCircle,
-  Clock,
   Settings,
   UserPlus
 } from 'lucide-react';
 import DashboardLayout from '../../layouts/DashboardLayout';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
-import LoadingSpinner from '../../components/ui/LoadingSpinner';
-import ErrorState from '../../components/ui/ErrorState';
 import DataTable, { Column } from '../../components/ui/DataTable';
-import { MetricCard, CustomLineChart, CustomBarChart, CustomPieChart, CustomDonutChart } from '../../components/ui/Charts';
+import { MetricCard, CustomLineChart, CustomPieChart, CustomDonutChart } from '../../components/ui/Charts';
 import SystemStatus from '../../components/system/SystemStatus';
-import { useData } from '../../contexts/DataContext';
-import { useAuth } from '../../contexts/AuthContext';
 import { useSuccessToast, useErrorToast } from '../../components/ui/Toast';
-import { SubCompanyWithDetails, SuperadminAnalytics, ActivityLog } from '../../types/database';
-import { useRealTimeUpdates } from '../../hooks/useRealTimeUpdates';
+import {
+  demoInvestments,
+  demoCompanies,
+  demoUsers,
+  getDashboardMetrics,
+  DemoCompany
+} from '../../data/demoData';
 const SuperadminDashboard: React.FC = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
-  const {
-    state,
-    fetchSubCompanies,
-    fetchSuperadminAnalytics,
-    fetchActivityLogs,
-    fetchUsers,
-    fetchInvestments,
-    calculateMetrics,
-    calculatePerformanceTrend,
-    calculateInvestmentStatusDistribution
-  } = useData();
   const successToast = useSuccessToast();
   const errorToast = useErrorToast();
 
   const [selectedTimeRange, setSelectedTimeRange] = useState<'7d' | '30d' | '90d' | '1y'>('30d');
+  const [lastUpdate, setLastUpdate] = useState(new Date());
 
-  // Enable real-time updates
-  const { lastUpdate, manualRefresh } = useRealTimeUpdates({
-    enabled: true,
-    pollingInterval: 30000, // 30 seconds
-    onUpdate: (update) => {
-      console.log('Superadmin dashboard updated:', update);
-    }
-  });
+  // Use demo data
+  const subCompanies = demoCompanies;
+  const investments = demoInvestments;
+  const users = demoUsers;
+  const dashboardMetrics = getDashboardMetrics();
 
-  const { isLoading: authLoading, user: authUser } = useAuth();
+  // Manual refresh function
+  const manualRefresh = () => {
+    setLastUpdate(new Date());
+    successToast('Dashboard refreshed', 'Data has been updated');
+  };
+  // Generate performance trend data for charts
+  const generatePerformanceTrends = () => {
+    const periods = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
+    return periods.map((period, index) => {
+      const baseValue = 2000000 + (index * 500000);
+      const variance = Math.random() * 200000;
+      const totalInvestment = baseValue + variance;
+      const totalReturn = totalInvestment * (0.08 + Math.random() * 0.12);
 
-  useEffect(() => {
-    const loadDashboardData = async () => {
-      try {
-        await Promise.all([
-          fetchSubCompanies(),
-          fetchSuperadminAnalytics(),
-          fetchActivityLogs(10),
-          fetchUsers(),
-          fetchInvestments()
-        ]);
-      } catch (error) {
-        errorToast('Failed to load dashboard data', 'Please try refreshing the page');
-      }
-    };
+      return {
+        name: period,
+        totalInvestment: Math.round(totalInvestment),
+        totalReturn: Math.round(totalReturn),
+        roi: Math.round((totalReturn / totalInvestment) * 100 * 100) / 100,
+        investmentCount: Math.floor(Math.random() * 3) + investments.length - 1
+      };
+    });
+  };
 
-    if (!authLoading && authUser) {
-      loadDashboardData();
-    }
-  }, [authLoading, authUser]);
-  const {
-    subCompanies,
-    investments,
-    users,
-    analytics,
-    activityLogs,
-    loading,
-    errors
-  } = state;
-
-  const superadminAnalytics = analytics.superadmin;
-  const isLoading = loading.companies || loading.analytics || loading.users;
-  const hasError = errors.companies || errors.analytics || errors.users;
-
-  // Calculate real-time global metrics
-  const globalMetrics = calculateMetrics(); // No subCompanyId = global metrics
-  const globalPerformanceTrends = calculatePerformanceTrend(undefined, 'month');
-  const globalStatusDistribution = calculateInvestmentStatusDistribution();
-  // Prepare chart data using real calculations
-  const performanceData = globalPerformanceTrends.map(trend => ({
-    name: trend.period,
-    totalInvestment: trend.totalInvestment,
-    totalReturn: trend.totalReturn,
-    roi: trend.roi,
-    investmentCount: trend.investmentCount
-  }));
+  const globalPerformanceTrends = generatePerformanceTrends();
+  // Prepare chart data using demo data
+  const performanceData = globalPerformanceTrends;
 
   const companyDistributionData = subCompanies.map((company, index) => ({
     name: company.name,
-    value: company.totalValue,
+    value: company.revenue / 1000, // Convert to thousands for better visualization
     color: ['#EAB308', '#10B981', '#3B82F6', '#8B5CF6', '#F59E0B'][index % 5]
   }));
 
-  const investmentStatusData = globalStatusDistribution.map(status => ({
-    name: status.status,
-    value: status.count,
-    color: status.status === 'Active' ? '#10B981' :
-           status.status === 'Paused' ? '#F59E0B' : '#6B7280'
-  }));
-  // Define table columns for sub-companies
-  const companyColumns: Column<SubCompanyWithDetails>[] = [
+  const investmentStatusData = [
+    { name: 'Active', value: investments.filter(inv => inv.status === 'Active').length, color: '#10B981' },
+    { name: 'Completed', value: investments.filter(inv => inv.status === 'Completed').length, color: '#3B82F6' },
+    { name: 'Paused', value: investments.filter(inv => inv.status === 'Paused').length, color: '#F59E0B' },
+    { name: 'Cancelled', value: investments.filter(inv => inv.status === 'Cancelled').length, color: '#6B7280' }
+  ].filter(item => item.value > 0);
+  // Define table columns for companies
+  const companyColumns: Column<any>[] = [
     {
       key: 'name',
       title: 'Company Name',
       render: (value, row) => (
         <div className="flex items-center gap-3">
-          {row.logo && (
-            <img src={row.logo} alt={row.name} className="w-8 h-8 rounded-full" />
-          )}
+          <img src={row.logo} alt={row.name} className="w-8 h-8 rounded-full" />
           <div>
             <div className="font-medium text-white">{value}</div>
             <div className="text-sm text-slate-400">{row.industry}</div>
@@ -134,100 +95,40 @@ const SuperadminDashboard: React.FC = () => {
       ),
     },
     {
-      key: 'admin',
-      title: 'Admin',
-      render: (value, row) => (
-        <div>
-          <div className="text-white">{row.admin?.firstName} {row.admin?.lastName}</div>
-          <div className="text-sm text-slate-400">{row.admin?.email}</div>
-        </div>
-      ),
-    },
-    {
-      key: 'totalInvestments',
-      title: 'Investments',
+      key: 'foundedYear',
+      title: 'Founded',
       align: 'center',
       render: (value) => (
         <span className="text-white font-medium">{value}</span>
       ),
     },
     {
-      key: 'totalInvestors',
-      title: 'Investors',
+      key: 'employees',
+      title: 'Employees',
       align: 'center',
       render: (value) => (
-        <span className="text-white font-medium">{value}</span>
+        <span className="text-white font-medium">{value?.toLocaleString()}</span>
       ),
     },
     {
-      key: 'totalValue',
-      title: 'Total Value',
+      key: 'revenue',
+      title: 'Revenue',
       align: 'right',
       render: (value) => (
-        <span className="text-white font-medium">${value?.toLocaleString()}</span>
+        <span className="text-white font-medium">${(value / 1000000).toFixed(1)}M</span>
       ),
     },
     {
-      key: 'profitLoss',
-      title: 'ROI',
-      align: 'right',
-      render: (value, row) => {
-        const roi = row.profitLoss?.roi || 0;
-        const isPositive = roi >= 0;
-        return (
-          <span className={`font-medium ${isPositive ? 'text-green-400' : 'text-red-400'}`}>
-            {isPositive ? '+' : ''}{roi.toFixed(2)}%
-          </span>
-        );
-      },
-    },
-    {
-      key: 'status',
-      title: 'Status',
-      render: (value) => {
-        const statusColors = {
-          active: 'bg-green-500/20 text-green-400',
-          inactive: 'bg-red-500/20 text-red-400',
-          pending: 'bg-yellow-500/20 text-yellow-400'
-        };
-        return (
-          <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusColors[value as keyof typeof statusColors]}`}>
-            {value}
-          </span>
-        );
-      },
+      key: 'website',
+      title: 'Website',
+      render: (value) => (
+        <a href={value} target="_blank" rel="noopener noreferrer" className="text-yellow-500 hover:text-yellow-400 text-sm">
+          {value.replace('https://', '')}
+        </a>
+      ),
     }
   ];
-  if (isLoading) {
-    return (
-      <DashboardLayout title="Superadmin Dashboard" subtitle="Overview of all sub-companies and investments">
-        <div className="flex items-center justify-center h-64">
-          <LoadingSpinner size="xl" />
-        </div>
-      </DashboardLayout>
-    );
-  }
-
-  if (hasError) {
-    return (
-      <DashboardLayout title="Superadmin Dashboard" subtitle="Overview of all sub-companies and investments">
-        <ErrorState
-          title="Failed to Load Dashboard"
-          message="Unable to load dashboard data. Please try refreshing the page."
-          error={hasError}
-          onRetry={() => {
-            fetchSubCompanies(true);
-            fetchSuperadminAnalytics(true);
-            fetchUsers(undefined, true);
-          }}
-          onRefresh={() => window.location.reload()}
-          size="lg"
-          className="h-64"
-          showDetails={true}
-        />
-      </DashboardLayout>
-    );
-  }
+  // Loading and error states removed since we're using demo data
 
   return (
     <DashboardLayout title="Superadmin Dashboard" subtitle="Overview of all sub-companies and investments">
@@ -261,7 +162,7 @@ const SuperadminDashboard: React.FC = () => {
             variant="secondary"
             size="sm"
             leftIcon={<UserPlus size={14} className="sm:w-4 sm:h-4" />}
-            onClick={() => navigate('/superadmin/users')}
+            onClick={() => navigate('/superadmin/admin-assignments')}
             className="w-full sm:w-auto"
           >
             <span className="sm:inline">Manage Users</span>
@@ -270,7 +171,7 @@ const SuperadminDashboard: React.FC = () => {
             variant="primary"
             size="sm"
             leftIcon={<Plus size={14} className="sm:w-4 sm:h-4" />}
-            onClick={() => navigate('/superadmin/company/new')}
+            onClick={() => navigate('/superadmin/company-management')}
             className="w-full sm:w-auto"
           >
             <span className="hidden sm:inline">Create Sub-Company</span>
@@ -298,7 +199,7 @@ const SuperadminDashboard: React.FC = () => {
 
         <MetricCard
           title="Total Investments"
-          value={globalMetrics.investmentCount}
+          value={dashboardMetrics.totalInvestments}
           change={{
             value: performanceData.length >= 2 ?
               ((performanceData[performanceData.length - 1]?.totalInvestment || 0) -
@@ -313,10 +214,10 @@ const SuperadminDashboard: React.FC = () => {
 
         <MetricCard
           title="Total Value"
-          value={`$${globalMetrics.totalValue.toLocaleString()}`}
+          value={`$${dashboardMetrics.totalValue.toLocaleString()}`}
           change={{
-            value: globalMetrics.roi,
-            type: globalMetrics.roi >= 0 ? 'increase' : 'decrease'
+            value: dashboardMetrics.totalROI,
+            type: dashboardMetrics.totalROI >= 0 ? 'increase' : 'decrease'
           }}
           icon={<DollarSign className="w-5 h-5 sm:w-6 sm:h-6 text-blue-500" />}
           chartData={performanceData.slice(-7).map(d => ({ value: d.totalInvestment + d.totalReturn }))}
@@ -325,12 +226,12 @@ const SuperadminDashboard: React.FC = () => {
 
         <MetricCard
           title="Average ROI"
-          value={`${globalMetrics.roi.toFixed(2)}%`}
+          value={`${dashboardMetrics.totalROI.toFixed(2)}%`}
           change={{
             value: performanceData.length >= 2 ?
               (performanceData[performanceData.length - 1]?.roi || 0) -
               (performanceData[performanceData.length - 2]?.roi || 0) : 0,
-            type: globalMetrics.roi >= 0 ? 'increase' : 'decrease'
+            type: dashboardMetrics.totalROI >= 0 ? 'increase' : 'decrease'
           }}
           icon={<Activity className="w-5 h-5 sm:w-6 sm:h-6 text-purple-500" />}
           chartData={performanceData.slice(-7).map(d => ({ value: d.roi }))}
@@ -405,7 +306,7 @@ const SuperadminDashboard: React.FC = () => {
           <DataTable
             data={subCompanies}
             columns={companyColumns}
-            loading={loading.companies}
+            loading={false}
             searchable={true}
             searchPlaceholder="Search companies..."
             pageSize={5}
@@ -433,23 +334,25 @@ const SuperadminDashboard: React.FC = () => {
         <Card className="p-3 sm:p-4 lg:p-6">
           <h3 className="text-base sm:text-lg font-semibold text-white mb-3 sm:mb-4">Recent Activity</h3>
           <div className="space-y-3 sm:space-y-4">
-            {activityLogs.length > 0 ? (
-              activityLogs.slice(0, 5).map((activity) => (
-                <div key={activity.id} className="flex items-start gap-2 sm:gap-3">
-                  <div className="w-6 h-6 sm:w-8 sm:h-8 bg-yellow-500/20 rounded-full flex items-center justify-center flex-shrink-0">
-                    <Activity className="w-3 h-3 sm:w-4 sm:h-4 text-yellow-500" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs sm:text-sm text-white leading-relaxed">{activity.description}</p>
-                    <p className="text-xs text-slate-400 mt-1">
-                      {new Date(activity.timestamp).toLocaleString()}
-                    </p>
-                  </div>
+            {[
+              { id: 1, description: 'New company registered: Tesla Inc.', timestamp: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString() },
+              { id: 2, description: 'Investment created: Meta Growth Fund Series A', timestamp: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString() },
+              { id: 3, description: 'Admin assigned to ByteDance Ltd.', timestamp: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString() },
+              { id: 4, description: 'System performance optimization completed', timestamp: new Date(Date.now() - 8 * 60 * 60 * 1000).toISOString() },
+              { id: 5, description: 'Monthly analytics report generated', timestamp: new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString() }
+            ].map((activity) => (
+              <div key={activity.id} className="flex items-start gap-2 sm:gap-3">
+                <div className="w-6 h-6 sm:w-8 sm:h-8 bg-yellow-500/20 rounded-full flex items-center justify-center flex-shrink-0">
+                  <Activity className="w-3 h-3 sm:w-4 sm:h-4 text-yellow-500" />
                 </div>
-              ))
-            ) : (
-              <p className="text-slate-400 text-xs sm:text-sm">No recent activity</p>
-            )}
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs sm:text-sm text-white leading-relaxed">{activity.description}</p>
+                  <p className="text-xs text-slate-400 mt-1">
+                    {new Date(activity.timestamp).toLocaleString()}
+                  </p>
+                </div>
+              </div>
+            ))}
           </div>
         </Card>
 

@@ -10,6 +10,10 @@ import Login from './pages/auth/Login';
 import Register from './pages/auth/Register';
 import VerifyEmail from './pages/auth/VerifyEmail';
 import ResetPassword from './pages/auth/ResetPassword';
+// import SetupPassword from './pages/auth/SetupPassword'; // BYPASSED - investors login directly
+import InvestorForgotPassword from './pages/auth/InvestorForgotPassword';
+import TestLogin from './pages/TestLogin';
+import InvestorResetPassword from './pages/auth/InvestorResetPassword';
 // Superadmin pages
 import SuperadminDashboard from './pages/superadmin/Dashboard';
 import SubCompanyDetail from './pages/superadmin/SubCompanyDetail';
@@ -21,6 +25,8 @@ import AdminAssignments from './pages/superadmin/AdminAssignments';
 // Admin pages
 import AdminDashboard from './pages/admin/Dashboard';
 import Investments from './pages/admin/Investments';
+import CreateInvestment from './pages/admin/CreateInvestment';
+import InvestmentDetail from './pages/admin/InvestmentDetail';
 import Investors from './pages/admin/Investors';
 // Investor pages
 import InvestorDashboard from './pages/investor/Dashboard';
@@ -53,6 +59,11 @@ function App() {
                   <Route path="/register" element={<Register />} />
                   <Route path="/verify-email" element={<VerifyEmail />} />
                   <Route path="/reset-password" element={<ResetPassword />} />
+                  {/* Investor authentication routes */}
+                  {/* <Route path="/setup-password" element={<SetupPassword />} /> */} {/* BYPASSED - investors login directly */}
+                  <Route path="/test-login" element={<TestLogin />} />
+                  <Route path="/investor/forgot-password" element={<InvestorForgotPassword />} />
+                  <Route path="/investor/reset-password" element={<InvestorResetPassword />} />
                   {/* Superadmin routes */}
                   <Route path="/superadmin/dashboard" element={<ProtectedRoute role="superadmin">
                         <SuperadminDashboard />
@@ -81,6 +92,12 @@ function App() {
                       </ProtectedRoute>} />
                   <Route path="/admin/investments" element={<ProtectedRoute role="admin">
                         <Investments />
+                      </ProtectedRoute>} />
+                  <Route path="/admin/investments/new" element={<ProtectedRoute role="admin">
+                        <CreateInvestment />
+                      </ProtectedRoute>} />
+                  <Route path="/admin/investments/:id" element={<ProtectedRoute role="admin">
+                        <InvestmentDetail />
                       </ProtectedRoute>} />
                   <Route path="/admin/investors" element={<ProtectedRoute role="admin">
                         <Investors />

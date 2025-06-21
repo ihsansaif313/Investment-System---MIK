@@ -25,8 +25,28 @@ export const INDUSTRY_OPTIONS = [
   'Other'
 ];
 
+export const CATEGORY_OPTIONS = [
+  'General',
+  'Startup',
+  'Growth',
+  'Mature',
+  'Acquisition',
+  'Joint Venture',
+  'Subsidiary',
+  'Division',
+  'Branch',
+  'Franchise',
+  'Partnership',
+  'Other'
+];
+
 export const ROLE_OPTIONS = [
-  { value: 'investor', label: 'Investor' },
+  { value: 'admin', label: 'Admin' },
+  { value: 'superadmin', label: 'Super Admin' }
+];
+
+// Investor role removed - investors are now created by admins only
+export const ADMIN_ROLE_OPTIONS = [
   { value: 'admin', label: 'Admin' },
   { value: 'superadmin', label: 'Super Admin' }
 ];

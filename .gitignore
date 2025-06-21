@@ -21,6 +21,9 @@ mongodb-data/
 *.db
 *.sqlite
 *.sqlite3
+*.lock
+WiredTiger*
+*.wt
 
 # Logs
 logs/

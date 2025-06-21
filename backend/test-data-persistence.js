@@ -1,3 +1,14 @@
+/**
+ * TEST DATA PERSISTENCE SCRIPT - DISABLED FOR PRODUCTION USE
+ * This file has been disabled to ensure clean production deployment
+ */
+
+console.error('❌ TEST DATA PERSISTENCE DISABLED');
+console.error('❌ This file contains test/dummy data and is disabled for production use');
+console.error('💡 Use real data through the application interface');
+process.exit(1);
+
+/*
 import mongoose from 'mongoose';
 import User from './models/User.js';
 import { OwnerCompany, SubCompany, CompanyAssignment } from './models/Company.js';
