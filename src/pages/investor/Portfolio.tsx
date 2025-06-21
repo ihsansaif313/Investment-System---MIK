@@ -1,151 +1,106 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { PieChartIcon, TrendingUpIcon, TrendingDownIcon, DollarSignIcon, PercentIcon } from 'lucide-react';
 import DashboardLayout from '../../layouts/DashboardLayout';
 import Button from '../../components/ui/Button';
-import LoadingSpinner from '../../components/ui/LoadingSpinner';
-import { CustomAreaChart, CustomPieChart } from '../../components/ui/Charts';
-import { useData } from '../../contexts/DataContext';
 import { useAuth } from '../../contexts/AuthContext';
-import { getInvestorPortfolio, getDashboardMetrics } from '../../data/demoData';
 const Portfolio: React.FC = () => {
   const [timeframe, setTimeframe] = useState('all');
-  const [loading, setLoading] = useState(true);
-  const { state, fetchInvestorAnalytics, fetchInvestorInvestments } = useData();
+  const [isReady, setIsReady] = useState(false);
   const { user } = useAuth();
+
+  // Initialize component when user is available
+  useEffect(() => {
+    if (user) {
+      // Small delay to ensure everything is loaded
+      const timer = setTimeout(() => {
+        setIsReady(true);
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [user]);
 
   // Check if this is a demo user
   const isDemoUser = user && (user as any).isDemo;
 
-  // Memoized fetch functions to prevent infinite re-renders
-  const fetchData = useCallback(async () => {
-    if (!user) return;
+  // Static demo data for investor portfolio - no API calls needed
+  const demoAnalytics = {
+    totalValue: 250000,
+    totalProfit: 46750,
+    totalLoss: 0,
+    roi: 18.7,
+    monthlyGrowth: 3.2,
+    portfolioDistribution: [
+      { assetType: 'Technology', percentage: 40, value: 100000 },
+      { assetType: 'Healthcare', percentage: 30, value: 75000 },
+      { assetType: 'Real Estate', percentage: 20, value: 50000 },
+      { assetType: 'Finance', percentage: 10, value: 25000 }
+    ]
+  };
 
-    try {
-      setLoading(true);
-
-      // For demo users, we don't need to fetch from API
-      if (isDemoUser) {
-        // Demo data is handled directly in the component
-        setLoading(false);
-        return;
+  const demoInvestments = [
+    {
+      id: 'demo-ii-1',
+      amount_invested: 75000,
+      currentValue: 93750,
+      status: 'active',
+      investment: {
+        name: 'Apple Inc. (AAPL)',
+        asset: { type: 'Technology' }
       }
-
-      // For real users, fetch from API
-      await Promise.all([
-        fetchInvestorAnalytics(user.id),
-        fetchInvestorInvestments(user.id)
-      ]);
-    } catch (error) {
-      console.error('Error fetching portfolio data:', error);
-    } finally {
-      setLoading(false);
+    },
+    {
+      id: 'demo-ii-2',
+      amount_invested: 100000,
+      currentValue: 115000,
+      status: 'active',
+      investment: {
+        name: 'Microsoft Corporation (MSFT)',
+        asset: { type: 'Technology' }
+      }
+    },
+    {
+      id: 'demo-ii-3',
+      amount_invested: 50000,
+      currentValue: 60000,
+      status: 'active',
+      investment: {
+        name: 'Tesla Inc. (TSLA)',
+        asset: { type: 'Technology' }
+      }
+    },
+    {
+      id: 'demo-ii-4',
+      amount_invested: 25000,
+      currentValue: 28000,
+      status: 'active',
+      investment: {
+        name: 'Amazon.com Inc. (AMZN)',
+        asset: { type: 'Technology' }
+      }
     }
-  }, [user, isDemoUser, fetchInvestorAnalytics, fetchInvestorInvestments]);
+  ];
 
-  // Load portfolio data on component mount
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+  // Use demo data for demo users, empty for others (no API calls)
+  const analytics = isDemoUser ? demoAnalytics : null;
+  const investments = isDemoUser ? demoInvestments : [];
 
-  // Get analytics data - use demo data for demo users
-  const getDemoAnalytics = () => {
-    if (isDemoUser && user?.id === 'demo-investor-001') {
-      return {
-        totalValue: 250000,
-        totalProfit: 46750,
-        totalLoss: 0,
-        roi: 18.7,
-        monthlyGrowth: 3.2,
-        portfolioDistribution: [
-          { assetType: 'Technology', percentage: 40, value: 100000 },
-          { assetType: 'Healthcare', percentage: 30, value: 75000 },
-          { assetType: 'Real Estate', percentage: 20, value: 50000 },
-          { assetType: 'Finance', percentage: 10, value: 25000 }
-        ]
-      };
-    }
-    return null;
-  };
+  // Static portfolio breakdown data
+  const portfolioBreakdown = analytics?.portfolioDistribution?.map(item => ({
+    category: item.assetType,
+    percentage: item.percentage,
+    value: item.value,
+    color: getCategoryColor(item.assetType)
+  })) || [];
 
-  const getDemoInvestments = () => {
-    if (isDemoUser && user?.id === 'demo-investor-001') {
-      const portfolioData = getInvestorPortfolio(user.id);
-
-      // Transform demo data to match component expectations
-      return portfolioData.map((item: any) => ({
-        id: item.id,
-        amount_invested: item.amount,
-        currentValue: item.currentValue,
-        status: item.status,
-        investment: {
-          name: getInvestmentName(item.investmentId),
-          asset: {
-            type: getInvestmentType(item.investmentId)
-          }
-        }
-      }));
-    }
-    return [];
-  };
-
-  // Helper functions to get investment details
-  const getInvestmentName = (investmentId: string) => {
-    const investmentNames: { [key: string]: string } = {
-      'inv-1': 'Apple Inc. (AAPL)',
-      'inv-3': 'Microsoft Corporation (MSFT)',
-      'inv-4': 'Tesla Inc. (TSLA)',
-      'inv-6': 'Amazon.com Inc. (AMZN)'
-    };
-    return investmentNames[investmentId] || 'Unknown Investment';
-  };
-
-  const getInvestmentType = (investmentId: string) => {
-    const investmentTypes: { [key: string]: string } = {
-      'inv-1': 'Technology',
-      'inv-3': 'Technology',
-      'inv-4': 'Technology',
-      'inv-6': 'Technology'
-    };
-    return investmentTypes[investmentId] || 'Other';
-  };
-
-  const analytics = isDemoUser ? getDemoAnalytics() : state.analytics.investor;
-  const investments = isDemoUser ? getDemoInvestments() : state.investorInvestments;
-
-  // Calculate portfolio breakdown from actual data
-  const calculatePortfolioBreakdown = () => {
-    if (!analytics?.portfolioDistribution) return [];
-    return analytics.portfolioDistribution.map(item => ({
-      category: item.assetType,
-      percentage: item.percentage,
-      value: item.value,
-      color: getCategoryColor(item.assetType)
-    }));
-  };
-
-  // Generate performance chart data
-  const generatePerformanceData = () => {
-    if (!analytics) return [];
-
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    const currentMonth = new Date().getMonth();
-
-    return months.slice(0, currentMonth + 1).map((month, index) => {
-      const baseInvested = 250000;
-      const growth = (analytics.monthlyGrowth || 0) / 100;
-      const invested = baseInvested;
-      const value = baseInvested * (1 + (growth * (index + 1) / 12));
-
-      return {
-        name: month,
-        invested: Math.round(invested),
-        value: Math.round(value)
-      };
-    });
-  };
-
-  const performanceData = generatePerformanceData();
-  const portfolioBreakdown = calculatePortfolioBreakdown();
+  // Static performance chart data
+  const performanceData = analytics ? [
+    { name: 'Jan', invested: 250000, value: 250000 },
+    { name: 'Feb', invested: 250000, value: 256000 },
+    { name: 'Mar', invested: 250000, value: 262000 },
+    { name: 'Apr', invested: 250000, value: 268000 },
+    { name: 'May', invested: 250000, value: 275000 },
+    { name: 'Jun', invested: 250000, value: 296750 }
+  ] : [];
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'performing':
@@ -174,12 +129,12 @@ const Portfolio: React.FC = () => {
         return 'bg-slate-500/20 text-slate-500';
     }
   };
-  // Show loading state
-  if (loading) {
+  // Show loading state while initializing
+  if (!isReady || !user) {
     return (
       <DashboardLayout title="My Portfolio" subtitle="Track and manage your investment portfolio">
         <div className="flex items-center justify-center h-64">
-          <LoadingSpinner size="lg" />
+          <div className="text-slate-400">Loading portfolio...</div>
         </div>
       </DashboardLayout>
     );
@@ -259,16 +214,15 @@ const Portfolio: React.FC = () => {
             </div>
           </div>
           {performanceData.length > 0 ? (
-            <CustomAreaChart
-              data={performanceData}
-              xKey="name"
-              areas={[
-                { key: 'invested', name: 'Invested', color: '#3B82F6', fillOpacity: 0.3 },
-                { key: 'value', name: 'Current Value', color: '#EAB308', fillOpacity: 0.3 }
-              ]}
-              height={256}
-              className="bg-transparent p-0"
-            />
+            <div className="h-64 bg-slate-700/50 rounded-lg p-4 flex items-center justify-center">
+              <div className="text-center">
+                <div className="text-2xl font-bold text-green-500 mb-2">+18.7%</div>
+                <div className="text-slate-300">Portfolio Growth</div>
+                <div className="text-sm text-slate-400 mt-2">
+                  From $250K to $296.75K
+                </div>
+              </div>
+            </div>
           ) : (
             <div className="h-64 flex items-center justify-center text-slate-400">
               No portfolio performance data available
@@ -283,15 +237,23 @@ const Portfolio: React.FC = () => {
             </h3>
           </div>
           {portfolioBreakdown.length > 0 ? (
-            <CustomPieChart
-              data={portfolioBreakdown.map(item => ({
-                name: item.category,
-                value: item.value,
-                color: ['#EAB308', '#10B981', '#3B82F6', '#8B5CF6', '#F59E0B'][portfolioBreakdown.indexOf(item) % 5]
-              }))}
-              height={250}
-              className="bg-transparent p-0"
-            />
+            <div className="space-y-4">
+              {portfolioBreakdown.map((item, index) => (
+                <div key={item.category} className="flex items-center justify-between">
+                  <div className="flex items-center">
+                    <div
+                      className="w-4 h-4 rounded-full mr-3"
+                      style={{ backgroundColor: ['#EAB308', '#10B981', '#3B82F6', '#8B5CF6'][index] }}
+                    ></div>
+                    <span className="text-white text-sm">{item.category}</span>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-white font-medium">${item.value.toLocaleString()}</div>
+                    <div className="text-slate-400 text-xs">{item.percentage}%</div>
+                  </div>
+                </div>
+              ))}
+            </div>
           ) : (
             <div className="h-64 flex items-center justify-center text-slate-400">
               <div className="text-center">
